@@ -34,9 +34,11 @@ re-do the (instant) popup after a reload or about an hour.
   **starred is pinned** to the top. Nothing else.
 - **Reading** — one email at a time; opening marks it read in Gmail; earlier
   thread messages stay collapsed until you ask.
-- **Composer** — a big writing surface. `⌘Enter` really sends. Replies thread
-  onto the original conversation. **+ Add images** attaches pictures (up to
-  ~4 MB total).
+- **Composer** — a big rich-text surface: bold/italic/underline/strike,
+  headings, quotes, lists, links, any text + highlight color, font family and
+  size. What you see is what's sent (HTML email with a plain-text fallback).
+  `⌘Enter` really sends. Replies thread onto the original conversation.
+  **+ Add images** attaches pictures (up to ~4 MB total).
 - **Drafts** — `⌘S` in the composer saves to Gmail drafts. The **Drafts**
   section (header link) lists them; open one to resume it, `E` deletes it, and
   sending a resumed draft cleans it up from Gmail automatically.
