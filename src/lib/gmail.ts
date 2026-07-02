@@ -126,6 +126,7 @@ export interface Draft {
   to: string;
   subject: string;
   body: string;
+  bodyHtml: string | null;
   threadId?: string;
   attachmentNames: string[];
   date: string; // ISO 8601
@@ -133,11 +134,13 @@ export interface Draft {
 
 export function parseDraft(draft: GmailDraft): Draft {
   const headers = draft.message.payload.headers;
+  const bodies = extractBodies(draft.message.payload);
   return {
     draftId: draft.id,
     to: header(headers, 'To'),
     subject: header(headers, 'Subject'),
-    body: extractBodies(draft.message.payload).text,
+    body: bodies.text,
+    bodyHtml: bodies.html,
     threadId: draft.message.threadId,
     attachmentNames: extractAttachmentNames(draft.message.payload),
     date: new Date(Number(draft.message.internalDate)).toISOString(),
@@ -165,6 +168,7 @@ export interface OutgoingMail {
   to: string;
   subject: string;
   body: string;
+  bodyHtml?: string; // when present, sent as multipart/alternative
   threadId?: string;
   inReplyTo?: string; // original Message-ID header value
   attachments?: Attachment[];
@@ -172,6 +176,21 @@ export interface OutgoingMail {
 
 function wrap76(b64: string): string {
   return b64.replace(/(.{76})/g, '$1\r\n');
+}
+
+let boundarySeq = 0;
+
+function newBoundary(): string {
+  return `tinymail_${++boundarySeq}_${Math.random().toString(36).slice(2)}`;
+}
+
+function multipart(type: 'mixed' | 'alternative', parts: string[]): string {
+  const boundary = newBoundary();
+  return (
+    `Content-Type: multipart/${type}; boundary="${boundary}"\r\n\r\n` +
+    parts.map((p) => `--${boundary}\r\n${p}`).join('\r\n') +
+    `\r\n--${boundary}--`
+  );
 }
 
 export function buildMime(mail: OutgoingMail): string {
@@ -187,29 +206,33 @@ export function buildMime(mail: OutgoingMail): string {
     utf8ToBase64(mail.body),
   ].join('\r\n');
 
+  // Body content: plain text, or alternative(plain, html) so it sends how it looks
+  const content = mail.bodyHtml
+    ? multipart('alternative', [
+        textPart,
+        [
+          'Content-Type: text/html; charset=UTF-8',
+          'Content-Transfer-Encoding: base64',
+          '',
+          utf8ToBase64(mail.bodyHtml),
+        ].join('\r\n'),
+      ])
+    : textPart;
+
   if (!mail.attachments?.length) {
-    return common.join('\r\n') + '\r\n' + textPart;
+    return common.join('\r\n') + '\r\n' + content;
   }
 
-  const boundary = 'tinymail_' + Math.random().toString(36).slice(2);
-  const parts = [
-    textPart,
-    ...mail.attachments.map((a) =>
-      [
-        `Content-Type: ${a.mimeType}; name="${a.filename}"`,
-        'Content-Transfer-Encoding: base64',
-        `Content-Disposition: attachment; filename="${a.filename}"`,
-        '',
-        wrap76(a.dataBase64),
-      ].join('\r\n'),
-    ),
-  ];
-  return (
-    common.join('\r\n') +
-    `\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
-    parts.map((p) => `--${boundary}\r\n${p}`).join('\r\n') +
-    `\r\n--${boundary}--`
+  const imageParts = mail.attachments.map((a) =>
+    [
+      `Content-Type: ${a.mimeType}; name="${a.filename}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${a.filename}"`,
+      '',
+      wrap76(a.dataBase64),
+    ].join('\r\n'),
   );
+  return common.join('\r\n') + '\r\n' + multipart('mixed', [content, ...imageParts]);
 }
 
 export function toBase64Url(ascii: string): string {

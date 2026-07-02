@@ -329,6 +329,7 @@ describe('parseDraft', () => {
       to: 'dana@northbeam.io',
       subject: 'WIP reply',
       body: 'half-written thought',
+      bodyHtml: null,
       threadId: 'dt1',
       attachmentNames: ['pic.png'],
       date: new Date(1751300000000).toISOString(),
@@ -348,5 +349,52 @@ describe('parseDraft', () => {
     expect(parsed.subject).toBe('');
     expect(parsed.body).toBe('');
     expect(parsed.attachmentNames).toEqual([]);
+  });
+});
+
+describe('buildMime with html body', () => {
+  it('builds multipart/alternative with plain fallback and html', () => {
+    const mime = buildMime({ to: 'a@b.com', subject: 'Rich', body: 'plain fallback', bodyHtml: '<b>rich</b>' });
+    const boundary = mime.match(/multipart\/alternative; boundary="([^"]+)"/)?.[1];
+    expect(boundary).toBeTruthy();
+    expect(mime).toContain('Content-Type: text/plain; charset=UTF-8');
+    expect(mime).toContain('Content-Type: text/html; charset=UTF-8');
+    expect(mime).toContain(btoa('plain fallback'));
+    expect(mime).toContain(btoa('<b>rich</b>'));
+    expect(mime).toContain(`--${boundary}--`);
+  });
+
+  it('nests alternative inside mixed when attachments exist', () => {
+    const mime = buildMime({
+      to: 'a@b.com', subject: 'Rich+img', body: 'plain', bodyHtml: '<i>x</i>',
+      attachments: [{ filename: 'p.png', mimeType: 'image/png', dataBase64: btoa('img') }],
+    });
+    const mixed = mime.match(/multipart\/mixed; boundary="([^"]+)"/)?.[1];
+    const alt = mime.match(/multipart\/alternative; boundary="([^"]+)"/)?.[1];
+    expect(mixed).toBeTruthy();
+    expect(alt).toBeTruthy();
+    expect(mixed).not.toBe(alt);
+    expect(mime.indexOf(`--${mixed}`)).toBeLessThan(mime.indexOf(`--${alt}`));
+    expect(mime).toContain('filename="p.png"');
+  });
+
+  it('html-only draft parsing keeps bodyHtml', () => {
+    const draft = {
+      id: 'd9',
+      message: {
+        id: 'dm9', threadId: 'dt9', snippet: '', internalDate: '1751300000000',
+        payload: {
+          mimeType: 'multipart/alternative',
+          headers: [{ name: 'To', value: 'x@y.com' }],
+          parts: [
+            { mimeType: 'text/plain', body: { data: b64url('plain') } },
+            { mimeType: 'text/html', body: { data: b64url('<b>styled</b>') } },
+          ],
+        },
+      },
+    };
+    const parsed = parseDraft(draft);
+    expect(parsed.body).toBe('plain');
+    expect(parsed.bodyHtml).toBe('<b>styled</b>');
   });
 });
