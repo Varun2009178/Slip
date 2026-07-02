@@ -1,20 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Email } from './lib/types';
-import { archive, connect, fetchInbox, fetchThread, markRead, sendEmail } from './lib/gmail';
+import {
+  archive,
+  connect,
+  fetchInbox,
+  fetchMessage,
+  fetchThread,
+  markRead,
+  sendEmail,
+  unarchive,
+} from './lib/gmail';
+import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
 import Connect from './components/Connect';
 import Inbox from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
 
+type Section = 'inbox' | 'read';
+
 type View =
-  | { name: 'inbox' }
+  | { name: 'list' }
   | { name: 'reading'; id: string }
   | { name: 'composing'; replyTo?: Email };
 
 type Theme = 'default' | 'paper';
 
+interface Toast {
+  text: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
 const FADE_MS = 250;
+const TOAST_MS = 5000;
 const THEME_KEY = 'tiny-mail-theme';
 
 function loadTheme(): Theme {
@@ -27,13 +46,15 @@ function loadTheme(): Theme {
 
 export default function App() {
   const [emails, setEmails] = useState<Email[] | null>(null);
+  const [doneEmails, setDoneEmails] = useState<Email[] | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<View>({ name: 'inbox' });
+  const [section, setSection] = useState<Section>('inbox');
+  const [view, setView] = useState<View>({ name: 'list' });
   const [thread, setThread] = useState<Email[] | null>(null);
   const [fadingIds, setFadingIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
 
   useEffect(() => {
@@ -46,16 +67,17 @@ export default function App() {
   }, [theme]);
 
   const inbox = useMemo(() => sortInbox(emails ?? []), [emails]);
+  const activeList = section === 'read' ? (doneEmails ?? []) : inbox;
 
   useEffect(() => {
-    if (!selectedId || !inbox.some((e) => e.id === selectedId)) {
-      setSelectedId(inbox[0]?.id ?? null);
+    if (!selectedId || !activeList.some((e) => e.id === selectedId)) {
+      setSelectedId(activeList[0]?.id ?? null);
     }
-  }, [inbox, selectedId]);
+  }, [activeList, selectedId]);
 
-  function showToast(text: string) {
-    setToast(text);
-    window.setTimeout(() => setToast(null), 2000);
+  function showToast(toast: Toast) {
+    setToast(toast);
+    window.setTimeout(() => setToast((t) => (t === toast ? null : t)), TOAST_MS);
   }
 
   async function refresh() {
@@ -63,7 +85,7 @@ export default function App() {
     try {
       setEmails(await fetchInbox());
     } catch {
-      showToast("Couldn't load inbox");
+      showToast({ text: "Couldn't load inbox" });
     } finally {
       setLoading(false);
     }
@@ -84,32 +106,93 @@ export default function App() {
     }
   }
 
+  async function openReadSection() {
+    setSection('read');
+    setDoneEmails(null);
+    setLoading(true);
+    try {
+      const ids = loadDoneIds();
+      const loaded = await Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)));
+      setDoneEmails(loaded.filter((m): m is Email => m !== null));
+    } catch {
+      setDoneEmails([]);
+      showToast({ text: "Couldn't load read emails" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function openEmail(id: string) {
-    const email = emails?.find((m) => m.id === id);
+    const email = activeList.find((m) => m.id === id);
     if (!email) return;
-    setEmails((list) => list?.map((m) => (m.id === id ? { ...m, unread: false } : m)) ?? null);
+    if (section === 'inbox' && email.unread) {
+      setEmails((list) => list?.map((m) => (m.id === id ? { ...m, unread: false } : m)) ?? null);
+      markRead(id).catch(() => undefined);
+    }
     setView({ name: 'reading', id });
     setThread(null);
-    if (email.unread) markRead(id).catch(() => undefined);
     fetchThread(email.threadId)
       .then((msgs) => setThread(msgs.filter((m) => m.id !== id)))
       .catch(() => setThread([]));
   }
 
+  function undoDone(email: Email) {
+    setToast(null);
+    removeDoneId(email.id);
+    setDoneEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+    setEmails((list) => (list ? [...list, email] : [email]));
+    unarchive(email.id).catch(() => {
+      setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+      addDoneId(email.id);
+      showToast({ text: "Couldn't undo" });
+    });
+  }
+
   function markDone(id: string) {
     if (fadingIds.includes(id)) return;
+    const email = emails?.find((m) => m.id === id);
+    if (!email) return;
     setFadingIds((f) => [...f, id]);
     window.setTimeout(() => {
       setFadingIds((f) => f.filter((x) => x !== id));
-      const removed = emails?.find((m) => m.id === id);
       setEmails((list) => list?.filter((m) => m.id !== id) ?? null);
-      setView((v) => (v.name === 'reading' && v.id === id ? { name: 'inbox' } : v));
-      archive(id).catch(() => {
-        if (removed) setEmails((list) => (list ? [...list, removed] : [removed]));
-        showToast("Couldn't archive");
-      });
+      setView((v) => (v.name === 'reading' && v.id === id ? { name: 'list' } : v));
+      archive(id)
+        .then(() => {
+          addDoneId(id);
+          setDoneEmails((list) => (list ? [email, ...list] : list));
+          showToast({ text: 'Done', actionLabel: 'Undo', onAction: () => undoDone(email) });
+        })
+        .catch(() => {
+          setEmails((list) => (list ? [...list, email] : [email]));
+          showToast({ text: "Couldn't archive" });
+        });
     }, FADE_MS);
   }
+
+  function restore(id: string) {
+    if (fadingIds.includes(id)) return;
+    const email = doneEmails?.find((m) => m.id === id);
+    if (!email) return;
+    setFadingIds((f) => [...f, id]);
+    window.setTimeout(() => {
+      setFadingIds((f) => f.filter((x) => x !== id));
+      setDoneEmails((list) => list?.filter((m) => m.id !== id) ?? null);
+      setView((v) => (v.name === 'reading' && v.id === id ? { name: 'list' } : v));
+      unarchive(id)
+        .then(() => {
+          removeDoneId(id);
+          setEmails((list) => (list ? [...list, email] : [email]));
+          showToast({ text: 'Back in inbox' });
+        })
+        .catch(() => {
+          setDoneEmails((list) => (list ? [email, ...list] : [email]));
+          showToast({ text: "Couldn't restore" });
+        });
+    }, FADE_MS);
+  }
+
+  const dismiss = section === 'read' ? restore : markDone;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -118,26 +201,28 @@ export default function App() {
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      if (view.name === 'inbox') {
-        const idx = inbox.findIndex((m) => m.id === selectedId);
+      if (view.name === 'list') {
+        const idx = activeList.findIndex((m) => m.id === selectedId);
         if (e.key === 'ArrowDown' || e.key === 'j') {
           e.preventDefault();
-          setSelectedId(inbox[Math.min(idx + 1, inbox.length - 1)]?.id ?? null);
+          setSelectedId(activeList[Math.min(idx + 1, activeList.length - 1)]?.id ?? null);
         } else if (e.key === 'ArrowUp' || e.key === 'k') {
           e.preventDefault();
-          setSelectedId(inbox[Math.max(idx - 1, 0)]?.id ?? null);
+          setSelectedId(activeList[Math.max(idx - 1, 0)]?.id ?? null);
         } else if (e.key === 'Enter' && selectedId) {
           openEmail(selectedId);
         } else if (e.key.toLowerCase() === 'e' && selectedId) {
-          markDone(selectedId);
-        } else if (e.key.toLowerCase() === 'c') {
+          dismiss(selectedId);
+        } else if (e.key.toLowerCase() === 'c' && section === 'inbox') {
           setView({ name: 'composing' });
+        } else if (e.key === 'Escape' && section === 'read') {
+          setSection('inbox');
         }
       } else if (view.name === 'reading') {
-        if (e.key.toLowerCase() === 'e') markDone(view.id);
-        else if (e.key === 'Escape') setView({ name: 'inbox' });
+        if (e.key.toLowerCase() === 'e') dismiss(view.id);
+        else if (e.key === 'Escape') setView({ name: 'list' });
         else if (e.key.toLowerCase() === 'r') {
-          const email = emails.find((m) => m.id === view.id);
+          const email = activeList.find((m) => m.id === view.id);
           setView({ name: 'composing', replyTo: email });
         } else if (e.key.toLowerCase() === 'c') {
           setView({ name: 'composing' });
@@ -146,7 +231,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, inbox, selectedId, fadingIds, emails]);
+  }, [view, activeList, selectedId, fadingIds, emails, section]);
 
   if (emails === null) {
     return (
@@ -156,13 +241,14 @@ export default function App() {
     );
   }
 
-  const readingEmail = view.name === 'reading' ? emails.find((m) => m.id === view.id) : undefined;
+  const readingEmail = view.name === 'reading' ? activeList.find((m) => m.id === view.id) : undefined;
 
   return (
     <div className="app">
-      {view.name === 'inbox' && (
+      {view.name === 'list' && (
         <Inbox
-          emails={inbox}
+          mode={section}
+          emails={activeList}
           selectedId={selectedId}
           fadingIds={fadingIds}
           loading={loading}
@@ -172,6 +258,7 @@ export default function App() {
           onCompose={() => setView({ name: 'composing' })}
           onRefresh={refresh}
           onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
+          onSwitchView={() => (section === 'read' ? setSection('inbox') : void openReadSection())}
         />
       )}
       {readingEmail && (
@@ -179,23 +266,33 @@ export default function App() {
           email={readingEmail}
           earlier={thread}
           fading={fadingIds.includes(readingEmail.id)}
-          onBack={() => setView({ name: 'inbox' })}
-          onDone={() => markDone(readingEmail.id)}
+          doneLabel={section === 'read' ? 'Restore' : 'Done'}
+          onBack={() => setView({ name: 'list' })}
+          onDone={() => dismiss(readingEmail.id)}
           onReply={() => setView({ name: 'composing', replyTo: readingEmail })}
         />
       )}
       {view.name === 'composing' && (
         <Composer
           replyTo={view.replyTo}
-          onClose={() => setView({ name: 'inbox' })}
+          onClose={() => setView({ name: 'list' })}
           onSend={async (mail) => {
             await sendEmail(mail);
-            setView({ name: 'inbox' });
-            showToast('Sent');
+            setView({ name: 'list' });
+            showToast({ text: 'Sent' });
           }}
         />
       )}
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className="toast">
+          {toast.text}
+          {toast.actionLabel && (
+            <button className="toast-action" onClick={toast.onAction}>
+              {toast.actionLabel}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

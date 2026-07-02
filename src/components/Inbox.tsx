@@ -3,6 +3,7 @@ import { formatDate } from '../lib/mail';
 import Avatar from './Avatar';
 
 interface Props {
+  mode: 'inbox' | 'read';
   emails: Email[];
   selectedId: string | null;
   fadingIds: string[];
@@ -13,9 +14,11 @@ interface Props {
   onCompose: () => void;
   onRefresh: () => void;
   onToggleTheme: () => void;
+  onSwitchView: () => void;
 }
 
 export default function Inbox({
+  mode,
   emails,
   selectedId,
   fadingIds,
@@ -26,12 +29,15 @@ export default function Inbox({
   onCompose,
   onRefresh,
   onToggleTheme,
+  onSwitchView,
 }: Props) {
+  const isRead = mode === 'read';
   return (
     <div>
       <header className="inbox-header">
-        <h1>Inbox</h1>
+        <h1>{isRead ? 'Read' : 'Inbox'}</h1>
         <div>
+          <button onClick={onSwitchView}>{isRead ? '← Inbox' : 'Read'}</button>
           <button
             className="theme-toggle"
             onClick={onToggleTheme}
@@ -39,17 +45,23 @@ export default function Inbox({
           >
             {theme === 'paper' ? '○' : '●'}
           </button>
-          <button onClick={onRefresh} disabled={loading} title="Refresh">
-            {loading ? '…' : '↻'}
-          </button>
-          <button onClick={onCompose}>
-            Compose<kbd>C</kbd>
-          </button>
+          {!isRead && (
+            <>
+              <button onClick={onRefresh} disabled={loading} title="Refresh">
+                {loading ? '…' : '↻'}
+              </button>
+              <button onClick={onCompose}>
+                Compose<kbd>C</kbd>
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      {emails.length === 0 ? (
-        <p className="empty">All done.</p>
+      {loading && emails.length === 0 ? (
+        <p className="empty">Loading…</p>
+      ) : emails.length === 0 ? (
+        <p className="empty">{isRead ? 'Nothing here yet — press E on an email.' : 'All done.'}</p>
       ) : (
         <ul className="email-list">
           {emails.map((email) => (
@@ -84,8 +96,9 @@ export default function Inbox({
       <footer className="hints">
         <span><kbd>↑↓</kbd> navigate</span>
         <span><kbd>↵</kbd> open</span>
-        <span><kbd>E</kbd> done</span>
-        <span><kbd>C</kbd> compose</span>
+        <span><kbd>E</kbd> {isRead ? 'restore' : 'done'}</span>
+        {!isRead && <span><kbd>C</kbd> compose</span>}
+        <span><kbd>Esc</kbd> back</span>
       </footer>
     </div>
   );

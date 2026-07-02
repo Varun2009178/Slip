@@ -8,12 +8,13 @@ interface Props {
   email: Email;
   earlier: Email[] | null; // null = thread still loading
   fading: boolean;
+  doneLabel: string; // 'Done' in inbox, 'Restore' in the Read section
   onBack: () => void;
   onDone: () => void;
   onReply: () => void;
 }
 
-export default function Reader({ email, earlier, fading, onBack, onDone, onReply }: Props) {
+export default function Reader({ email, earlier, fading, doneLabel, onBack, onDone, onReply }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -27,7 +28,7 @@ export default function Reader({ email, earlier, fading, onBack, onDone, onReply
             Reply<kbd>R</kbd>
           </button>
           <button onClick={onDone}>
-            Done<kbd>E</kbd>
+            {doneLabel}<kbd>E</kbd>
           </button>
         </div>
       </header>

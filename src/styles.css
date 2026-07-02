@@ -283,3 +283,45 @@ kbd {
 }
 
 :root[data-theme='paper'] .html-body { background: #fffdf8; }
+
+/* ── Attachments & toast actions ───────── */
+
+.attach-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.attach-bar > button { border: 1px solid var(--line); font-size: 0.85rem; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 0.25rem 0.4rem 0.25rem 0.8rem;
+  font-size: 0.82rem;
+}
+.chip-size { color: var(--muted); font-size: 0.75rem; }
+.chip-x {
+  padding: 0 0.4rem;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.toast { display: flex; align-items: center; gap: 0.75rem; }
+.toast-action {
+  color: inherit;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+:root[data-theme='paper'] .toast-action { border-color: rgba(255, 255, 255, 0.4); }
+.toast-action:hover { background: rgba(255, 255, 255, 0.15); }
