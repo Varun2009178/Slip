@@ -1,7 +1,38 @@
 # Tiny Email Client — Design
 
 **Date:** 2026-07-01
-**Status:** Approved by proxy (user provided a detailed spec and was away during clarifying questions; decisions below follow the spec's explicit guidance, e.g. "send (or simulate send)").
+**Status:** v1 approved by proxy; v2 (below) approved by user.
+
+## v2 — Real Gmail, no AI, second colorway (user-approved 2026-07-01)
+
+1. **Remove AI entirely** — delete `lib/ai.ts` + tests, the Rewrite bar, the
+   API-key prompt, and the `@anthropic-ai/sdk` dependency.
+2. **Real Gmail, browser-only** (user confirmed the one-time Google Cloud
+   OAuth Client ID setup):
+   - `lib/gmail.ts`: Google Identity Services token popup + Gmail REST API.
+   - Client ID pasted once (localStorage). Access token in memory only —
+     Google popup re-appears after reload/expiry (instant when signed in).
+   - Inbox = newest 25 INBOX messages. Bold = Gmail `UNREAD`.
+     Pinned = `STARRED` (deliberate, unlike Gmail's auto-IMPORTANT).
+   - Open → removes `UNREAD` in Gmail; thread fetched, earlier messages collapsed.
+   - `E` = archive (remove `INBOX` label) — the Gmail-honest "done".
+   - `⌘Enter` sends for real (RFC 2822 MIME → `messages.send`); replies thread
+     via `threadId` + `In-Reply-To`/`References`.
+   - Mock data and the localStorage read/done store are deleted — Gmail is the
+     source of truth.
+   - Scopes: `gmail.modify` + `gmail.send`.
+3. **Warm paper colorway** — cream background, ink-brown text, terracotta
+   accent. Toggle in the inbox header, persisted, applied via
+   `data-theme="paper"` on `<html>`.
+
+Testing: pure Gmail plumbing is unit-tested (sender parsing, MIME body
+extraction incl. base64url + HTML fallback, outbound MIME building, RFC 2047
+subject encoding). OAuth/network paths are verified manually by the user —
+they require real Google credentials.
+
+---
+
+## v1 (original)
 
 ## Purpose
 
