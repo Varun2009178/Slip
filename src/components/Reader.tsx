@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
+import Avatar from './Avatar';
+import EmailBody from './EmailBody';
 
 interface Props {
   email: Email;
@@ -32,7 +34,8 @@ export default function Reader({ email, earlier, fading, onBack, onDone, onReply
 
       <article className={fading ? 'email fading' : 'email'}>
         <h1>{email.subject}</h1>
-        <p className="meta">
+        <p className="meta sender">
+          <Avatar name={email.from} email={email.fromEmail} />
           {email.from} <span>&lt;{email.fromEmail}&gt;</span> · {formatDate(email.date)}
         </p>
 
@@ -47,19 +50,11 @@ export default function Reader({ email, earlier, fading, onBack, onDone, onReply
               <p className="meta">
                 {m.from} · {formatDate(m.date)}
               </p>
-              <div className="body">
-                {m.body.split('\n\n').map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
+              <EmailBody email={m} />
             </div>
           ))}
 
-        <div className="body">
-          {email.body.split('\n\n').map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
+        <EmailBody email={email} />
       </article>
     </div>
   );

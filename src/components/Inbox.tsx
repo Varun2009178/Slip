@@ -1,5 +1,6 @@
 import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
+import Avatar from './Avatar';
 
 interface Props {
   emails: Email[];
@@ -65,13 +66,16 @@ export default function Inbox({
               onMouseEnter={() => onSelect(email.id)}
               onClick={() => onOpen(email.id)}
             >
-              <span className="pin">{email.starred ? '●' : ''}</span>
+              <Avatar name={email.from} email={email.fromEmail} />
               <span className="from">{email.from}</span>
               <span className="subject-preview">
                 <span className="subject">{email.subject}</span>
                 {email.snippet}
               </span>
-              <span className="date">{formatDate(email.date)}</span>
+              <span className="date">
+                {email.starred && <span className="star">★ </span>}
+                {formatDate(email.date)}
+              </span>
             </li>
           ))}
         </ul>
