@@ -57,7 +57,7 @@ src/
 
 - **Data model:** `Email { id, from, to, subject, body, date, unread, important, thread: Message[] }`. `done` and `read` ids live in localStorage, merged at load.
 - **State:** plain `useState` in `App` — a view enum plus the email list. No router, no state library.
-- **AI:** `lib/ai.ts` exposes `rewrite(text, mode)`. Uses `claude-haiku-4-5` (fast, cheap — right for rewrites) with a strict "return only the rewritten text" system prompt. Errors surface as a quiet inline message, never a modal.
+- **AI:** `lib/ai.ts` exposes `rewrite(text, mode)`. Uses `claude-opus-4-8` (the current default Claude model) via the official `@anthropic-ai/sdk` with browser access enabled, and a strict "return only the rewritten text" system prompt. Errors surface as a quiet inline message, never a modal.
 - **Keyboard:** `E` = done, `C` = compose, `Esc` = back, `Cmd+Enter` = send, `↑/↓` = move selection in inbox, `Enter` = open.
 
 ## Visual language
