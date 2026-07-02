@@ -60,6 +60,20 @@ they require real Google credentials.
 3. **Undo** — after `E`, the "Done" toast carries an Undo action for ~5s that
    un-archives and reinserts the email in place.
 
+## v5 — Drafts (user-requested 2026-07-01)
+
+1. **Save draft** — composer gains a Save-draft button (`⌘S`). Uses Gmail's
+   drafts API: `POST /drafts` (create) / `PUT /drafts/{id}` (update when
+   resaving the same draft). Saving closes the composer with a toast.
+2. **Drafts section** — a `Drafts` link in the inbox header lists Gmail drafts
+   (newest 25). Rows show recipient / subject / preview. `Enter`/click resumes
+   the draft in the composer; `E` deletes the draft (no undo — deleting a
+   draft is already the "undo" of saving). Sending a resumed draft deletes it
+   from Gmail drafts after the send succeeds.
+3. **Attachment caveat** — resumed drafts reload text fields only; if the
+   saved draft carried images, the composer shows their names with a
+   "re-add" note rather than silently dropping them.
+
 ## v1 (original)
 
 ## Purpose
