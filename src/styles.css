@@ -224,7 +224,6 @@ kbd {
   --accent: #b3542e;
 }
 
-body { transition: background 0.25s ease, color 0.25s ease; }
 
 .theme-toggle { color: var(--accent); }
 
