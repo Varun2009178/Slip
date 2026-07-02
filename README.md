@@ -37,6 +37,9 @@ re-do the (instant) popup after a reload or about an hour.
 - **Composer** — a big writing surface. `⌘Enter` really sends. Replies thread
   onto the original conversation. **+ Add images** attaches pictures (up to
   ~4 MB total).
+- **Drafts** — `⌘S` in the composer saves to Gmail drafts. The **Drafts**
+  section (header link) lists them; open one to resume it, `E` deletes it, and
+  sending a resumed draft cleans it up from Gmail automatically.
 - **Done** — press `E` and the email fades away (archived in Gmail terms).
   The toast offers **Undo** for a few seconds, and everything you've dismissed
   lives in the **Read** section (header link), where `E` restores it to the
@@ -46,4 +49,4 @@ re-do the (instant) popup after a reload or about an hour.
 
 ## Keys
 
-`↑↓` navigate · `Enter` open · `E` done · `C` compose · `R` reply · `Esc` back · `⌘Enter` send
+`↑↓` navigate · `Enter` open · `E` done · `C` compose · `R` reply · `Esc` back · `⌘Enter` send · `⌘S` save draft
