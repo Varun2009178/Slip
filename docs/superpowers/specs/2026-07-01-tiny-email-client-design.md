@@ -46,6 +46,20 @@ they require real Google credentials.
    letter initial when the image fails. Starred marker moves to a small ★ by
    the date.
 
+## v4 — Image attachments, Read section, undo (user-requested 2026-07-01)
+
+1. **Image attachments** — composer gets an "Add images" button (hidden file
+   input, multi-select, images only). Selected files show as removable chips
+   with size. `buildMime` gains multipart/mixed support: text part + one
+   base64 part per image (76-char wrapped, `Content-Disposition: attachment`).
+   Soft cap ~4MB total (Gmail simple-send limit is 5MB).
+2. **Read section** — a `Read` link in the inbox header. Shows the emails
+   dismissed with `E` *in this app* (ids kept in localStorage, capped at 50,
+   fetched by id on view open). From there, `E`/the reader's Restore button
+   un-archives the email back to the inbox and removes it from the list.
+3. **Undo** — after `E`, the "Done" toast carries an Undo action for ~5s that
+   un-archives and reinserts the email in place.
+
 ## v1 (original)
 
 ## Purpose
