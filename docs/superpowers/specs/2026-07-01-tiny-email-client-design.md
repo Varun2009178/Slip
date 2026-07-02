@@ -74,6 +74,21 @@ they require real Google credentials.
    saved draft carried images, the composer shows their names with a
    "re-add" note rather than silently dropping them.
 
+## v6 — Rich drafting: beautiful, customizable, sends how it looks (2026-07-02)
+
+1. **Rich composer** — the body becomes a contentEditable surface (no editor
+   dependency) with a toolbar: bold / italic / underline / strikethrough,
+   heading, quote, bulleted + numbered lists, link, free text color +
+   highlight color pickers, font family (default/serif/sans/mono), text size,
+   and clear-formatting. `⌘B/I/U` work natively; selection is preserved across
+   toolbar interactions via save/restore of the range.
+2. **Sends exactly how it looks** — `OutgoingMail.bodyHtml`; `buildMime` gains
+   `multipart/alternative` (plain-text fallback + HTML part), nested inside
+   `multipart/mixed` when images are attached.
+3. **Drafts keep formatting** — drafts save the HTML part; `parseDraft`
+   returns `bodyHtml`, and resuming loads it back into the editor through
+   `sanitizeHtml` (strips scripts/handlers/js: URLs, keeps formatting).
+
 ## v1 (original)
 
 ## Purpose
