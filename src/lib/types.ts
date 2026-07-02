@@ -7,6 +7,7 @@ export interface Email {
   subject: string;
   snippet: string;
   body: string;
+  bodyHtml: string | null;
   date: string; // ISO 8601
   unread: boolean;
   starred: boolean;

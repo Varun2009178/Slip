@@ -70,16 +70,25 @@ function findPart(part: GmailPart, mime: string): GmailPart | null {
 }
 
 export function extractBody(payload: GmailPart): string {
-  const plain = findPart(payload, 'text/plain');
-  if (plain?.body?.data) return decodeBase64Url(plain.body.data).trim();
-  const html = findPart(payload, 'text/html');
-  if (html?.body?.data) return stripHtml(decodeBase64Url(html.body.data));
-  return '';
+  return extractBodies(payload).text;
+}
+
+export function extractBodies(payload: GmailPart): { text: string; html: string | null } {
+  const plainPart = findPart(payload, 'text/plain');
+  const htmlPart = findPart(payload, 'text/html');
+  const html = htmlPart?.body?.data ? decodeBase64Url(htmlPart.body.data) : null;
+  const text = plainPart?.body?.data
+    ? decodeBase64Url(plainPart.body.data).trim()
+    : html
+      ? stripHtml(html)
+      : '';
+  return { text, html };
 }
 
 export function parseMessage(msg: GmailMessage): Email {
   const headers = msg.payload.headers;
   const sender = parseSender(header(headers, 'From'));
+  const bodies = extractBodies(msg.payload);
   return {
     id: msg.id,
     threadId: msg.threadId,
@@ -88,7 +97,8 @@ export function parseMessage(msg: GmailMessage): Email {
     fromEmail: sender.email,
     subject: header(headers, 'Subject') || '(no subject)',
     snippet: msg.snippet,
-    body: extractBody(msg.payload),
+    body: bodies.text,
+    bodyHtml: bodies.html,
     date: new Date(Number(msg.internalDate)).toISOString(),
     unread: msg.labelIds?.includes('UNREAD') ?? false,
     starred: msg.labelIds?.includes('STARRED') ?? false,

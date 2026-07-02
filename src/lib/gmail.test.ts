@@ -3,6 +3,7 @@ import {
   buildMime,
   decodeBase64Url,
   encodeHeader,
+  extractBodies,
   extractBody,
   header,
   parseMessage,
@@ -173,6 +174,7 @@ describe('parseMessage', () => {
       subject: 'Roadmap',
       snippet: 'snippet…',
       body: 'the body',
+      bodyHtml: null,
       date: new Date(Date.UTC(2026, 6, 1, 9, 12)).toISOString(),
       unread: true,
       starred: true,
@@ -191,5 +193,49 @@ describe('parseMessage', () => {
     expect(email.subject).toBe('(no subject)');
     expect(email.unread).toBe(false);
     expect(email.starred).toBe(false);
+  });
+});
+
+describe('extractBodies', () => {
+  it('returns plain text and html when both exist', () => {
+    const payload = {
+      mimeType: 'multipart/alternative',
+      parts: [
+        { mimeType: 'text/plain', body: { data: b64url('plain version') } },
+        { mimeType: 'text/html', body: { data: b64url('<p>html version</p>') } },
+      ],
+    };
+    expect(extractBodies(payload)).toEqual({ text: 'plain version', html: '<p>html version</p>' });
+  });
+
+  it('derives text from html when only html exists', () => {
+    const payload = { mimeType: 'text/html', body: { data: b64url('<p>only html</p>') } };
+    expect(extractBodies(payload)).toEqual({ text: 'only html', html: '<p>only html</p>' });
+  });
+
+  it('returns nulls-ish for empty payloads', () => {
+    expect(extractBodies({ mimeType: 'multipart/mixed', parts: [] })).toEqual({ text: '', html: null });
+  });
+});
+
+describe('parseMessage bodyHtml', () => {
+  it('carries the html part on the email', () => {
+    const msg: GmailMessage = {
+      id: 'm3',
+      threadId: 't3',
+      snippet: '',
+      internalDate: '1751300000000',
+      payload: {
+        mimeType: 'multipart/alternative',
+        headers: [{ name: 'From', value: 'a@b.com' }],
+        parts: [
+          { mimeType: 'text/plain', body: { data: b64url('txt') } },
+          { mimeType: 'text/html', body: { data: b64url('<b>rich</b>') } },
+        ],
+      },
+    };
+    const email = parseMessage(msg);
+    expect(email.body).toBe('txt');
+    expect(email.bodyHtml).toBe('<b>rich</b>');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, sortInbox } from './mail';
+import { faviconUrl, formatDate, senderInitial, sortInbox } from './mail';
 import type { Email } from './types';
 
 function email(overrides: Partial<Email>): Email {
@@ -12,6 +12,7 @@ function email(overrides: Partial<Email>): Email {
     subject: 's',
     snippet: 'sn',
     body: 'b',
+    bodyHtml: null,
     date: '2026-07-01T10:00:00',
     unread: true,
     starred: false,
@@ -57,5 +58,25 @@ describe('formatDate', () => {
 
   it('shows month and day for older dates', () => {
     expect(formatDate('2026-06-28T09:12:00', now)).toMatch(/Jun 28/);
+  });
+});
+
+describe('faviconUrl', () => {
+  it('builds a favicon url from the sender domain', () => {
+    expect(faviconUrl('noreply@github.com')).toContain('domain=github.com');
+  });
+
+  it('returns null when there is no domain', () => {
+    expect(faviconUrl('not-an-email')).toBeNull();
+  });
+});
+
+describe('senderInitial', () => {
+  it('uses the first letter, uppercased', () => {
+    expect(senderInitial('dana whitfield')).toBe('D');
+  });
+
+  it('falls back to ? for empty names', () => {
+    expect(senderInitial('')).toBe('?');
   });
 });
