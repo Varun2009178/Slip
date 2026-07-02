@@ -214,6 +214,7 @@ export default function App() {
         } else if (e.key.toLowerCase() === 'e' && selectedId) {
           dismiss(selectedId);
         } else if (e.key.toLowerCase() === 'c' && section === 'inbox') {
+          e.preventDefault(); // keep the keystroke out of the autofocused composer
           setView({ name: 'composing' });
         } else if (e.key === 'Escape' && section === 'read') {
           setSection('inbox');
@@ -222,9 +223,11 @@ export default function App() {
         if (e.key.toLowerCase() === 'e') dismiss(view.id);
         else if (e.key === 'Escape') setView({ name: 'list' });
         else if (e.key.toLowerCase() === 'r') {
+          e.preventDefault();
           const email = activeList.find((m) => m.id === view.id);
           setView({ name: 'composing', replyTo: email });
         } else if (e.key.toLowerCase() === 'c') {
+          e.preventDefault();
           setView({ name: 'composing' });
         }
       }

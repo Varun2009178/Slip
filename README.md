@@ -35,9 +35,12 @@ re-do the (instant) popup after a reload or about an hour.
 - **Reading** — one email at a time; opening marks it read in Gmail; earlier
   thread messages stay collapsed until you ask.
 - **Composer** — a big writing surface. `⌘Enter` really sends. Replies thread
-  onto the original conversation.
-- **Done** — press `E` and the email fades away. In Gmail terms it's archived
-  (still findable in All Mail), so nothing is ever lost.
+  onto the original conversation. **+ Add images** attaches pictures (up to
+  ~4 MB total).
+- **Done** — press `E` and the email fades away (archived in Gmail terms).
+  The toast offers **Undo** for a few seconds, and everything you've dismissed
+  lives in the **Read** section (header link), where `E` restores it to the
+  inbox.
 - **Colorways** — the ●/○ button in the header flips between the plain theme
   and a warm paper one; your choice is remembered.
 
