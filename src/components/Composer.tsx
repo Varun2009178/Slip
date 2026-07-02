@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Email } from '../lib/types';
-import type { Attachment, OutgoingMail } from '../lib/gmail';
+import type { Attachment, Draft, OutgoingMail } from '../lib/gmail';
 
 interface Props {
   replyTo?: Email;
+  draft?: Draft;
   onClose: () => void;
-  onSend: (mail: OutgoingMail) => Promise<void>;
+  onSend: (mail: OutgoingMail, draftId?: string) => Promise<void>;
+  onSaveDraft: (mail: OutgoingMail, draftId?: string) => Promise<void>;
 }
 
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024; // Gmail simple-send limit is 5MB; leave headroom
@@ -27,14 +29,15 @@ interface Attached extends Attachment {
   size: number;
 }
 
-export default function Composer({ replyTo, onClose, onSend }: Props) {
-  const [to, setTo] = useState(replyTo?.fromEmail ?? '');
+export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft }: Props) {
+  const [to, setTo] = useState(draft?.to ?? replyTo?.fromEmail ?? '');
   const [subject, setSubject] = useState(
-    replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : '',
+    draft?.subject ??
+      (replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : ''),
   );
-  const [body, setBody] = useState('');
+  const [body, setBody] = useState(draft?.body ?? '');
   const [attachments, setAttachments] = useState<Attached[]>([]);
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState<'send' | 'save' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -43,11 +46,21 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
     bodyRef.current?.focus();
   }, []);
 
+  function currentMail(): OutgoingMail {
+    return {
+      to: to.trim(),
+      subject,
+      body,
+      threadId: draft?.threadId ?? replyTo?.threadId,
+      inReplyTo: replyTo?.rfcMessageId || undefined,
+      attachments: attachments.length ? attachments : undefined,
+    };
+  }
+
   async function addFiles(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
-    const current = attachments.reduce((sum, a) => sum + a.size, 0);
-    let total = current;
+    let total = attachments.reduce((sum, a) => sum + a.size, 0);
     const added: Attached[] = [];
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue;
@@ -68,7 +81,7 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
   }
 
   async function trySend() {
-    if (sending) return;
+    if (busy) return;
     if (!to.trim()) {
       setError('Add a recipient');
       return;
@@ -77,20 +90,29 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
       setError('Write something first');
       return;
     }
-    setSending(true);
+    setBusy('send');
     setError(null);
     try {
-      await onSend({
-        to: to.trim(),
-        subject,
-        body,
-        threadId: replyTo?.threadId,
-        inReplyTo: replyTo?.rfcMessageId || undefined,
-        attachments: attachments.length ? attachments : undefined,
-      });
+      await onSend(currentMail(), draft?.draftId);
     } catch {
       setError("Couldn't send — try again");
-      setSending(false);
+      setBusy(null);
+    }
+  }
+
+  async function trySave() {
+    if (busy) return;
+    if (!to.trim() && !subject.trim() && !body.trim() && attachments.length === 0) {
+      setError('Nothing to save');
+      return;
+    }
+    setBusy('save');
+    setError(null);
+    try {
+      await onSaveDraft(currentMail(), draft?.draftId);
+    } catch {
+      setError("Couldn't save — try again");
+      setBusy(null);
     }
   }
 
@@ -98,6 +120,9 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       void trySend();
+    } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      void trySave();
     } else if (e.key === 'Escape') {
       onClose();
     }
@@ -109,10 +134,16 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
         <button onClick={onClose}>
           ← Discard<kbd>Esc</kbd>
         </button>
-        <button className="send" onClick={trySend} disabled={sending}>
-          {sending ? 'Sending…' : 'Send'}
-          <kbd>⌘↵</kbd>
-        </button>
+        <div>
+          <button onClick={trySave} disabled={!!busy}>
+            {busy === 'save' ? 'Saving…' : 'Save draft'}
+            <kbd>⌘S</kbd>
+          </button>
+          <button className="send" onClick={trySend} disabled={!!busy}>
+            {busy === 'send' ? 'Sending…' : 'Send'}
+            <kbd>⌘↵</kbd>
+          </button>
+        </div>
       </header>
 
       <input className="field" placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} />
@@ -139,7 +170,7 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
           hidden
           onChange={(e) => void addFiles(e.target.files)}
         />
-        <button onClick={() => fileRef.current?.click()} disabled={sending}>
+        <button onClick={() => fileRef.current?.click()} disabled={!!busy}>
           + Add images
         </button>
         {attachments.map((a, i) => (
@@ -154,6 +185,11 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
             </button>
           </span>
         ))}
+        {draft && draft.attachmentNames.length > 0 && attachments.length === 0 && (
+          <span className="chip chip-note" title="Images from the saved draft aren't carried over — re-add them">
+            re-add: {draft.attachmentNames.join(', ')}
+          </span>
+        )}
         {error && <span className="ai-error">{error}</span>}
       </footer>
     </div>

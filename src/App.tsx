@@ -3,26 +3,29 @@ import type { Email } from './lib/types';
 import {
   archive,
   connect,
+  deleteDraft,
   fetchInbox,
   fetchMessage,
   fetchThread,
+  listDrafts,
   markRead,
+  saveDraft,
   sendEmail,
   unarchive,
+  type Draft,
+  type OutgoingMail,
 } from './lib/gmail';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
 import Connect from './components/Connect';
-import Inbox from './components/Inbox';
+import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
-
-type Section = 'inbox' | 'read';
 
 type View =
   | { name: 'list' }
   | { name: 'reading'; id: string }
-  | { name: 'composing'; replyTo?: Email };
+  | { name: 'composing'; replyTo?: Email; draft?: Draft };
 
 type Theme = 'default' | 'paper';
 
@@ -44,9 +47,27 @@ function loadTheme(): Theme {
   }
 }
 
+function draftRow(d: Draft): Email {
+  return {
+    id: d.draftId,
+    threadId: d.threadId ?? '',
+    rfcMessageId: '',
+    from: d.to || '(no recipient)',
+    fromEmail: d.to,
+    subject: d.subject || '(no subject)',
+    snippet: d.body.replace(/\s+/g, ' ').slice(0, 90),
+    body: d.body,
+    bodyHtml: null,
+    date: d.date,
+    unread: false,
+    starred: false,
+  };
+}
+
 export default function App() {
   const [emails, setEmails] = useState<Email[] | null>(null);
   const [doneEmails, setDoneEmails] = useState<Email[] | null>(null);
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [section, setSection] = useState<Section>('inbox');
@@ -67,7 +88,15 @@ export default function App() {
   }, [theme]);
 
   const inbox = useMemo(() => sortInbox(emails ?? []), [emails]);
-  const activeList = section === 'read' ? (doneEmails ?? []) : inbox;
+  const activeList = useMemo(
+    () =>
+      section === 'read'
+        ? (doneEmails ?? [])
+        : section === 'drafts'
+          ? (drafts ?? []).map(draftRow)
+          : inbox,
+    [section, doneEmails, drafts, inbox],
+  );
 
   useEffect(() => {
     if (!selectedId || !activeList.some((e) => e.id === selectedId)) {
@@ -106,23 +135,35 @@ export default function App() {
     }
   }
 
-  async function openReadSection() {
-    setSection('read');
-    setDoneEmails(null);
-    setLoading(true);
-    try {
+  function navigate(target: Section) {
+    setSection(target);
+    if (target === 'read') {
+      setDoneEmails(null);
+      setLoading(true);
       const ids = loadDoneIds();
-      const loaded = await Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)));
-      setDoneEmails(loaded.filter((m): m is Email => m !== null));
-    } catch {
-      setDoneEmails([]);
-      showToast({ text: "Couldn't load read emails" });
-    } finally {
-      setLoading(false);
+      Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)))
+        .then((loaded) => setDoneEmails(loaded.filter((m): m is Email => m !== null)))
+        .catch(() => setDoneEmails([]))
+        .finally(() => setLoading(false));
+    } else if (target === 'drafts') {
+      setDrafts(null);
+      setLoading(true);
+      listDrafts()
+        .then(setDrafts)
+        .catch(() => {
+          setDrafts([]);
+          showToast({ text: "Couldn't load drafts" });
+        })
+        .finally(() => setLoading(false));
     }
   }
 
   function openEmail(id: string) {
+    if (section === 'drafts') {
+      const draft = drafts?.find((d) => d.draftId === id);
+      if (draft) setView({ name: 'composing', draft });
+      return;
+    }
     const email = activeList.find((m) => m.id === id);
     if (!email) return;
     if (section === 'inbox' && email.unread) {
@@ -192,7 +233,42 @@ export default function App() {
     }, FADE_MS);
   }
 
-  const dismiss = section === 'read' ? restore : markDone;
+  function removeDraft(draftId: string) {
+    if (fadingIds.includes(draftId)) return;
+    const draft = drafts?.find((d) => d.draftId === draftId);
+    if (!draft) return;
+    setFadingIds((f) => [...f, draftId]);
+    window.setTimeout(() => {
+      setFadingIds((f) => f.filter((x) => x !== draftId));
+      setDrafts((list) => list?.filter((d) => d.draftId !== draftId) ?? null);
+      deleteDraft(draftId)
+        .then(() => showToast({ text: 'Draft deleted' }))
+        .catch(() => {
+          setDrafts((list) => (list ? [draft, ...list] : [draft]));
+          showToast({ text: "Couldn't delete draft" });
+        });
+    }, FADE_MS);
+  }
+
+  const dismiss = section === 'read' ? restore : section === 'drafts' ? removeDraft : markDone;
+
+  async function handleSend(mail: OutgoingMail, draftId?: string) {
+    await sendEmail(mail);
+    if (draftId) {
+      deleteDraft(draftId).catch(() => undefined);
+      setDrafts((list) => list?.filter((d) => d.draftId !== draftId) ?? null);
+    }
+    setView({ name: 'list' });
+    showToast({ text: 'Sent' });
+  }
+
+  async function handleSaveDraft(mail: OutgoingMail, draftId?: string) {
+    await saveDraft(mail, draftId);
+    setDrafts(null); // stale — refetched next time the section opens
+    if (section === 'drafts') navigate('drafts');
+    setView({ name: 'list' });
+    showToast({ text: 'Saved to drafts' });
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -213,10 +289,10 @@ export default function App() {
           openEmail(selectedId);
         } else if (e.key.toLowerCase() === 'e' && selectedId) {
           dismiss(selectedId);
-        } else if (e.key.toLowerCase() === 'c' && section === 'inbox') {
+        } else if (e.key.toLowerCase() === 'c' && section !== 'read') {
           e.preventDefault(); // keep the keystroke out of the autofocused composer
           setView({ name: 'composing' });
-        } else if (e.key === 'Escape' && section === 'read') {
+        } else if (e.key === 'Escape' && section !== 'inbox') {
           setSection('inbox');
         }
       } else if (view.name === 'reading') {
@@ -234,7 +310,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, activeList, selectedId, fadingIds, emails, section]);
+  }, [view, activeList, selectedId, fadingIds, emails, section, drafts]);
 
   if (emails === null) {
     return (
@@ -261,7 +337,7 @@ export default function App() {
           onCompose={() => setView({ name: 'composing' })}
           onRefresh={refresh}
           onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
-          onSwitchView={() => (section === 'read' ? setSection('inbox') : void openReadSection())}
+          onNavigate={navigate}
         />
       )}
       {readingEmail && (
@@ -278,12 +354,10 @@ export default function App() {
       {view.name === 'composing' && (
         <Composer
           replyTo={view.replyTo}
+          draft={view.draft}
           onClose={() => setView({ name: 'list' })}
-          onSend={async (mail) => {
-            await sendEmail(mail);
-            setView({ name: 'list' });
-            showToast({ text: 'Sent' });
-          }}
+          onSend={handleSend}
+          onSaveDraft={handleSaveDraft}
         />
       )}
       {toast && (

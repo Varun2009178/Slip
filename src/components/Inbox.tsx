@@ -2,8 +2,17 @@ import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
 import Avatar from './Avatar';
 
+export type Section = 'inbox' | 'read' | 'drafts';
+
+const TITLES: Record<Section, string> = { inbox: 'Inbox', read: 'Read', drafts: 'Drafts' };
+const EMPTY: Record<Section, string> = {
+  inbox: 'All done.',
+  read: 'Nothing here yet — press E on an email.',
+  drafts: 'No drafts — ⌘S in the composer saves one.',
+};
+
 interface Props {
-  mode: 'inbox' | 'read';
+  mode: Section;
   emails: Email[];
   selectedId: string | null;
   fadingIds: string[];
@@ -14,7 +23,7 @@ interface Props {
   onCompose: () => void;
   onRefresh: () => void;
   onToggleTheme: () => void;
-  onSwitchView: () => void;
+  onNavigate: (section: Section) => void;
 }
 
 export default function Inbox({
@@ -29,15 +38,22 @@ export default function Inbox({
   onCompose,
   onRefresh,
   onToggleTheme,
-  onSwitchView,
+  onNavigate,
 }: Props) {
-  const isRead = mode === 'read';
+  const isInbox = mode === 'inbox';
   return (
     <div>
       <header className="inbox-header">
-        <h1>{isRead ? 'Read' : 'Inbox'}</h1>
+        <h1>{TITLES[mode]}</h1>
         <div>
-          <button onClick={onSwitchView}>{isRead ? '← Inbox' : 'Read'}</button>
+          {isInbox ? (
+            <>
+              <button onClick={() => onNavigate('drafts')}>Drafts</button>
+              <button onClick={() => onNavigate('read')}>Read</button>
+            </>
+          ) : (
+            <button onClick={() => onNavigate('inbox')}>← Inbox</button>
+          )}
           <button
             className="theme-toggle"
             onClick={onToggleTheme}
@@ -45,7 +61,7 @@ export default function Inbox({
           >
             {theme === 'paper' ? '○' : '●'}
           </button>
-          {!isRead && (
+          {isInbox && (
             <>
               <button onClick={onRefresh} disabled={loading} title="Refresh">
                 {loading ? '…' : '↻'}
@@ -61,7 +77,7 @@ export default function Inbox({
       {loading && emails.length === 0 ? (
         <p className="empty">Loading…</p>
       ) : emails.length === 0 ? (
-        <p className="empty">{isRead ? 'Nothing here yet — press E on an email.' : 'All done.'}</p>
+        <p className="empty">{EMPTY[mode]}</p>
       ) : (
         <ul className="email-list">
           {emails.map((email) => (
@@ -96,8 +112,8 @@ export default function Inbox({
       <footer className="hints">
         <span><kbd>↑↓</kbd> navigate</span>
         <span><kbd>↵</kbd> open</span>
-        <span><kbd>E</kbd> {isRead ? 'restore' : 'done'}</span>
-        {!isRead && <span><kbd>C</kbd> compose</span>}
+        <span><kbd>E</kbd> {mode === 'inbox' ? 'done' : mode === 'read' ? 'restore' : 'delete'}</span>
+        {isInbox && <span><kbd>C</kbd> compose</span>}
         <span><kbd>Esc</kbd> back</span>
       </footer>
     </div>
