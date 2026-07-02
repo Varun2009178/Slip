@@ -239,3 +239,41 @@ describe('parseMessage bodyHtml', () => {
     expect(email.bodyHtml).toBe('<b>rich</b>');
   });
 });
+
+describe('buildMime with attachments', () => {
+  const png = { filename: 'photo.png', mimeType: 'image/png', dataBase64: btoa('fakepngbytes') };
+
+  it('builds multipart/mixed with text and image parts', () => {
+    const mime = buildMime({ to: 'a@b.com', subject: 'Pics', body: 'see attached', attachments: [png] });
+    const boundary = mime.match(/boundary="([^"]+)"/)?.[1];
+    expect(boundary).toBeTruthy();
+    expect(mime).toContain('Content-Type: multipart/mixed;');
+    expect(mime).toContain(`--${boundary}\r\n`);
+    expect(mime).toContain(`--${boundary}--`);
+    expect(mime).toContain('Content-Type: text/plain; charset=UTF-8');
+    expect(mime).toContain('Content-Type: image/png; name="photo.png"');
+    expect(mime).toContain('Content-Disposition: attachment; filename="photo.png"');
+    expect(mime).toContain(btoa('fakepngbytes'));
+  });
+
+  it('keeps reply headers in multipart mode', () => {
+    const mime = buildMime({
+      to: 'a@b.com', subject: 'Re: Pics', body: 'x', inReplyTo: '<orig@mail>', attachments: [png],
+    });
+    expect(mime).toContain('In-Reply-To: <orig@mail>\r\n');
+  });
+
+  it('wraps long attachment base64 at 76 chars', () => {
+    const big = { filename: 'b.png', mimeType: 'image/png', dataBase64: 'A'.repeat(300) };
+    const mime = buildMime({ to: 'a@b.com', subject: 's', body: 'x', attachments: [big] });
+    const wrapped = mime.split('Content-Disposition: attachment; filename="b.png"')[1];
+    const lines = wrapped.trim().split('\r\n').filter((l) => /^A+$/.test(l));
+    expect(lines.length).toBeGreaterThan(1);
+    expect(Math.max(...lines.map((l) => l.length))).toBeLessThanOrEqual(76);
+  });
+
+  it('stays single-part without attachments', () => {
+    const mime = buildMime({ to: 'a@b.com', subject: 'Hi', body: 'plain' });
+    expect(mime).not.toContain('multipart/mixed');
+  });
+});

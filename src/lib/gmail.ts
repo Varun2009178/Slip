@@ -116,26 +116,61 @@ export function encodeHeader(value: string): string {
   return `=?UTF-8?B?${utf8ToBase64(value)}?=`;
 }
 
+export interface Attachment {
+  filename: string;
+  mimeType: string;
+  dataBase64: string;
+}
+
 export interface OutgoingMail {
   to: string;
   subject: string;
   body: string;
   threadId?: string;
   inReplyTo?: string; // original Message-ID header value
+  attachments?: Attachment[];
+}
+
+function wrap76(b64: string): string {
+  return b64.replace(/(.{76})/g, '$1\r\n');
 }
 
 export function buildMime(mail: OutgoingMail): string {
-  const headers = [
-    `To: ${mail.to}`,
-    `Subject: ${encodeHeader(mail.subject)}`,
-    'MIME-Version: 1.0',
+  const common = [`To: ${mail.to}`, `Subject: ${encodeHeader(mail.subject)}`, 'MIME-Version: 1.0'];
+  if (mail.inReplyTo) {
+    common.push(`In-Reply-To: ${mail.inReplyTo}`, `References: ${mail.inReplyTo}`);
+  }
+
+  const textPart = [
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
-  ];
-  if (mail.inReplyTo) {
-    headers.push(`In-Reply-To: ${mail.inReplyTo}`, `References: ${mail.inReplyTo}`);
+    '',
+    utf8ToBase64(mail.body),
+  ].join('\r\n');
+
+  if (!mail.attachments?.length) {
+    return common.join('\r\n') + '\r\n' + textPart;
   }
-  return headers.join('\r\n') + '\r\n\r\n' + utf8ToBase64(mail.body);
+
+  const boundary = 'tinymail_' + Math.random().toString(36).slice(2);
+  const parts = [
+    textPart,
+    ...mail.attachments.map((a) =>
+      [
+        `Content-Type: ${a.mimeType}; name="${a.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${a.filename}"`,
+        '',
+        wrap76(a.dataBase64),
+      ].join('\r\n'),
+    ),
+  ];
+  return (
+    common.join('\r\n') +
+    `\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+    parts.map((p) => `--${boundary}\r\n${p}`).join('\r\n') +
+    `\r\n--${boundary}--`
+  );
 }
 
 export function toBase64Url(ascii: string): string {
@@ -272,6 +307,17 @@ export async function archive(id: string): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ removeLabelIds: ['INBOX', 'UNREAD'] }),
   });
+}
+
+export async function unarchive(id: string): Promise<void> {
+  await api(`/messages/${id}/modify`, {
+    method: 'POST',
+    body: JSON.stringify({ addLabelIds: ['INBOX'] }),
+  });
+}
+
+export async function fetchMessage(id: string): Promise<Email> {
+  return parseMessage(await api<GmailMessage>(`/messages/${id}?format=full`));
 }
 
 export async function sendEmail(mail: OutgoingMail): Promise<void> {
