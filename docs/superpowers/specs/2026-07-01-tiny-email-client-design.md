@@ -32,6 +32,20 @@ they require real Google credentials.
 
 ---
 
+## v3 — Proper formatting, wider layout, sender logos (user-requested 2026-07-01)
+
+1. **HTML email rendering** — `extractBodies()` returns both the plain-text and
+   the raw HTML part. When HTML exists, the reader renders it in a sandboxed
+   `<iframe srcdoc>` (`allow-same-origin allow-popups`, **no scripts**) with a
+   small injected stylesheet (margins, responsive images) and
+   `<base target="_blank">`. Height auto-fits the content. Plain-text emails
+   render as before. Applies to thread messages too.
+2. **Wider layout** — `.app` max-width 680px → 960px; inbox grid rebalanced.
+3. **Sender logos** — inbox rows and the reader show a small round avatar:
+   the sender domain's favicon (Google s2 favicon service), falling back to a
+   letter initial when the image fails. Starred marker moves to a small ★ by
+   the date.
+
 ## v1 (original)
 
 ## Purpose
