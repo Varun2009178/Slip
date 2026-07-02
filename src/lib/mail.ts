@@ -1,8 +1,8 @@
-import type { Email } from '../data/emails';
+import type { Email } from './types';
 
 export function sortInbox(emails: Email[]): Email[] {
   return [...emails].sort((a, b) => {
-    if (a.important !== b.important) return a.important ? -1 : 1;
+    if (a.starred !== b.starred) return a.starred ? -1 : 1;
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 }

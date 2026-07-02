@@ -212,3 +212,36 @@ kbd {
   border-radius: 999px;
   font-size: 0.85rem;
 }
+
+/* ── Warm paper colorway ───────────────── */
+
+:root[data-theme='paper'] {
+  --bg: #f6efe3;
+  --surface: #fdf8ee;
+  --text: #2b2118;
+  --muted: #93826d;
+  --line: #e6dcc8;
+  --accent: #b3542e;
+}
+
+body { transition: background 0.25s ease, color 0.25s ease; }
+
+.theme-toggle { color: var(--accent); }
+
+/* ── Connect screen ────────────────────── */
+
+.connect {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-top: 18vh;
+  max-width: 26rem;
+}
+.connect .field { width: 100%; }
+.connect-note { color: var(--muted); margin: 0; line-height: 1.5; }
+.connect-reset { color: var(--muted); font-size: 0.82rem; padding-left: 0; }
+.connect-steps { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+.connect-steps summary { cursor: pointer; }
+.connect-steps ol { padding-left: 1.2rem; }
+.connect-steps code { background: var(--line); border-radius: 4px; padding: 0 0.25rem; }

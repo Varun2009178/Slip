@@ -1,24 +1,50 @@
-import type { Email } from '../data/emails';
+import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
 
 interface Props {
   emails: Email[];
-  readIds: string[];
   selectedId: string | null;
   fadingIds: string[];
+  loading: boolean;
+  theme: 'default' | 'paper';
   onOpen: (id: string) => void;
   onSelect: (id: string) => void;
   onCompose: () => void;
+  onRefresh: () => void;
+  onToggleTheme: () => void;
 }
 
-export default function Inbox({ emails, readIds, selectedId, fadingIds, onOpen, onSelect, onCompose }: Props) {
+export default function Inbox({
+  emails,
+  selectedId,
+  fadingIds,
+  loading,
+  theme,
+  onOpen,
+  onSelect,
+  onCompose,
+  onRefresh,
+  onToggleTheme,
+}: Props) {
   return (
     <div>
       <header className="inbox-header">
         <h1>Inbox</h1>
-        <button onClick={onCompose}>
-          Compose<kbd>C</kbd>
-        </button>
+        <div>
+          <button
+            className="theme-toggle"
+            onClick={onToggleTheme}
+            title={theme === 'paper' ? 'Switch to plain theme' : 'Switch to paper theme'}
+          >
+            {theme === 'paper' ? '○' : '●'}
+          </button>
+          <button onClick={onRefresh} disabled={loading} title="Refresh">
+            {loading ? '…' : '↻'}
+          </button>
+          <button onClick={onCompose}>
+            Compose<kbd>C</kbd>
+          </button>
+        </div>
       </header>
 
       {emails.length === 0 ? (
@@ -30,7 +56,7 @@ export default function Inbox({ emails, readIds, selectedId, fadingIds, onOpen, 
               key={email.id}
               className={[
                 'email-row',
-                readIds.includes(email.id) ? '' : 'unread',
+                email.unread ? 'unread' : '',
                 email.id === selectedId ? 'selected' : '',
                 fadingIds.includes(email.id) ? 'fading' : '',
               ]
@@ -39,11 +65,11 @@ export default function Inbox({ emails, readIds, selectedId, fadingIds, onOpen, 
               onMouseEnter={() => onSelect(email.id)}
               onClick={() => onOpen(email.id)}
             >
-              <span className="pin">{email.important ? '●' : ''}</span>
+              <span className="pin">{email.starred ? '●' : ''}</span>
               <span className="from">{email.from}</span>
               <span className="subject-preview">
                 <span className="subject">{email.subject}</span>
-                {email.body.replace(/\n+/g, ' ')}
+                {email.snippet}
               </span>
               <span className="date">{formatDate(email.date)}</span>
             </li>

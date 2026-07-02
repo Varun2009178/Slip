@@ -1,59 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Email } from '../data/emails';
-import { getApiKey, rewrite, setApiKey, type RewriteMode } from '../lib/ai';
+import type { Email } from '../lib/types';
+import type { OutgoingMail } from '../lib/gmail';
 
 interface Props {
   replyTo?: Email;
   onClose: () => void;
-  onSend: () => void;
+  onSend: (mail: OutgoingMail) => Promise<void>;
 }
-
-const MODE_LABELS: Record<RewriteMode, string> = {
-  shorter: 'Shorter',
-  formal: 'More formal',
-  blunt: 'Blunter',
-};
 
 export default function Composer({ replyTo, onClose, onSend }: Props) {
   const [to, setTo] = useState(replyTo?.fromEmail ?? '');
-  const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject}` : '');
+  const [subject, setSubject] = useState(
+    replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : '',
+  );
   const [body, setBody] = useState('');
-  const [busy, setBusy] = useState<RewriteMode | null>(null);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsKey, setNeedsKey] = useState(false);
-  const [keyInput, setKeyInput] = useState('');
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bodyRef.current?.focus();
   }, []);
 
-  async function runRewrite(mode: RewriteMode) {
-    if (!body.trim() || busy) return;
-    if (!getApiKey()) {
-      setNeedsKey(true);
-      return;
-    }
-    const el = bodyRef.current;
-    const start = el?.selectionStart ?? 0;
-    const end = el?.selectionEnd ?? 0;
-    const hasSelection = start !== end;
-    const target = hasSelection ? body.slice(start, end) : body;
-
-    setBusy(mode);
-    setError(null);
-    try {
-      const result = await rewrite(target, mode);
-      setBody(hasSelection ? body.slice(0, start) + result + body.slice(end) : result);
-    } catch {
-      setError("Couldn't rewrite — try again");
-    } finally {
-      setBusy(null);
-      bodyRef.current?.focus();
-    }
-  }
-
-  function trySend() {
+  async function trySend() {
+    if (sending) return;
     if (!to.trim()) {
       setError('Add a recipient');
       return;
@@ -62,13 +32,26 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
       setError('Write something first');
       return;
     }
-    onSend();
+    setSending(true);
+    setError(null);
+    try {
+      await onSend({
+        to: to.trim(),
+        subject,
+        body,
+        threadId: replyTo?.threadId,
+        inReplyTo: replyTo?.rfcMessageId || undefined,
+      });
+    } catch {
+      setError("Couldn't send — try again");
+      setSending(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
-      trySend();
+      void trySend();
     } else if (e.key === 'Escape') {
       onClose();
     }
@@ -80,8 +63,9 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
         <button onClick={onClose}>
           ← Discard<kbd>Esc</kbd>
         </button>
-        <button className="send" onClick={trySend}>
-          Send<kbd>⌘↵</kbd>
+        <button className="send" onClick={trySend} disabled={sending}>
+          {sending ? 'Sending…' : 'Send'}
+          <kbd>⌘↵</kbd>
         </button>
       </header>
 
@@ -99,36 +83,11 @@ export default function Composer({ replyTo, onClose, onSend }: Props) {
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-
-      <footer className="ai-bar">
-        <span className="ai-label">Rewrite</span>
-        {(Object.keys(MODE_LABELS) as RewriteMode[]).map((mode) => (
-          <button key={mode} disabled={!!busy || !body.trim()} onClick={() => runRewrite(mode)}>
-            {busy === mode ? '…' : MODE_LABELS[mode]}
-          </button>
-        ))}
-        {error && <span className="ai-error">{error}</span>}
-        {needsKey && (
-          <span className="key-entry">
-            <input
-              type="password"
-              placeholder="Paste Anthropic API key, press Enter"
-              value={keyInput}
-              autoFocus
-              onChange={(e) => setKeyInput(e.target.value)}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === 'Enter' && keyInput.trim()) {
-                  setApiKey(keyInput.trim());
-                  setNeedsKey(false);
-                  setKeyInput('');
-                }
-                if (e.key === 'Escape') setNeedsKey(false);
-              }}
-            />
-          </span>
-        )}
-      </footer>
+      {error && (
+        <footer className="ai-bar">
+          <span className="ai-error">{error}</span>
+        </footer>
+      )}
     </div>
   );
 }

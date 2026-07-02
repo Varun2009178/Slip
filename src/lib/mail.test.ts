@@ -1,26 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { formatDate, sortInbox } from './mail';
-import type { Email } from '../data/emails';
+import type { Email } from './types';
 
 function email(overrides: Partial<Email>): Email {
   return {
     id: 'x',
+    threadId: 'tx',
+    rfcMessageId: '<x@mail>',
     from: 'A',
     fromEmail: 'a@a.com',
     subject: 's',
+    snippet: 'sn',
     body: 'b',
     date: '2026-07-01T10:00:00',
-    important: false,
-    thread: [],
+    unread: true,
+    starred: false,
     ...overrides,
   };
 }
 
 describe('sortInbox', () => {
-  it('pins important emails to the top', () => {
+  it('pins starred emails to the top', () => {
     const list = [
-      email({ id: 'a', date: '2026-07-01T10:00:00', important: false }),
-      email({ id: 'b', date: '2026-06-01T10:00:00', important: true }),
+      email({ id: 'a', date: '2026-07-01T10:00:00', starred: false }),
+      email({ id: 'b', date: '2026-06-01T10:00:00', starred: true }),
     ];
     expect(sortInbox(list).map((e) => e.id)).toEqual(['b', 'a']);
   });
@@ -29,8 +32,8 @@ describe('sortInbox', () => {
     const list = [
       email({ id: 'old', date: '2026-06-01T10:00:00' }),
       email({ id: 'new', date: '2026-07-01T10:00:00' }),
-      email({ id: 'pin-old', date: '2026-05-01T10:00:00', important: true }),
-      email({ id: 'pin-new', date: '2026-06-15T10:00:00', important: true }),
+      email({ id: 'pin-old', date: '2026-05-01T10:00:00', starred: true }),
+      email({ id: 'pin-new', date: '2026-06-15T10:00:00', starred: true }),
     ];
     expect(sortInbox(list).map((e) => e.id)).toEqual(['pin-new', 'pin-old', 'new', 'old']);
   });
