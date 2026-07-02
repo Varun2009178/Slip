@@ -3,9 +3,11 @@ import {
   buildMime,
   decodeBase64Url,
   encodeHeader,
+  extractAttachmentNames,
   extractBodies,
   extractBody,
   header,
+  parseDraft,
   parseMessage,
   parseSender,
   stripHtml,
@@ -275,5 +277,76 @@ describe('buildMime with attachments', () => {
   it('stays single-part without attachments', () => {
     const mime = buildMime({ to: 'a@b.com', subject: 'Hi', body: 'plain' });
     expect(mime).not.toContain('multipart/mixed');
+  });
+});
+
+describe('extractAttachmentNames', () => {
+  it('collects filenames from attachment parts', () => {
+    const payload = {
+      mimeType: 'multipart/mixed',
+      parts: [
+        { mimeType: 'text/plain', body: { data: b64url('hi') } },
+        { mimeType: 'image/png', filename: 'a.png', body: {} },
+        {
+          mimeType: 'multipart/alternative',
+          parts: [{ mimeType: 'image/jpeg', filename: 'b.jpg', body: {} }],
+        },
+      ],
+    };
+    expect(extractAttachmentNames(payload)).toEqual(['a.png', 'b.jpg']);
+  });
+
+  it('ignores empty filenames', () => {
+    const payload = { mimeType: 'text/plain', filename: '', body: { data: b64url('x') } };
+    expect(extractAttachmentNames(payload)).toEqual([]);
+  });
+});
+
+describe('parseDraft', () => {
+  it('maps a Gmail draft to fields for the composer', () => {
+    const draft = {
+      id: 'd1',
+      message: {
+        id: 'dm1',
+        threadId: 'dt1',
+        snippet: '',
+        internalDate: '1751300000000',
+        payload: {
+          mimeType: 'multipart/mixed',
+          headers: [
+            { name: 'To', value: 'dana@northbeam.io' },
+            { name: 'Subject', value: 'WIP reply' },
+          ],
+          parts: [
+            { mimeType: 'text/plain', body: { data: b64url('half-written thought') } },
+            { mimeType: 'image/png', filename: 'pic.png', body: {} },
+          ],
+        },
+      },
+    };
+    expect(parseDraft(draft)).toEqual({
+      draftId: 'd1',
+      to: 'dana@northbeam.io',
+      subject: 'WIP reply',
+      body: 'half-written thought',
+      threadId: 'dt1',
+      attachmentNames: ['pic.png'],
+      date: new Date(1751300000000).toISOString(),
+    });
+  });
+
+  it('handles empty drafts', () => {
+    const draft = {
+      id: 'd2',
+      message: {
+        id: 'dm2', threadId: 'dt2', snippet: '', internalDate: '1751300000000',
+        payload: { mimeType: 'text/plain', headers: [], body: {} },
+      },
+    };
+    const parsed = parseDraft(draft);
+    expect(parsed.to).toBe('');
+    expect(parsed.subject).toBe('');
+    expect(parsed.body).toBe('');
+    expect(parsed.attachmentNames).toEqual([]);
   });
 });

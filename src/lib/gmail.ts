@@ -9,6 +9,7 @@ export interface GmailHeader {
 
 export interface GmailPart {
   mimeType: string;
+  filename?: string;
   body?: { data?: string };
   parts?: GmailPart[];
   headers?: GmailHeader[];
@@ -102,6 +103,44 @@ export function parseMessage(msg: GmailMessage): Email {
     date: new Date(Number(msg.internalDate)).toISOString(),
     unread: msg.labelIds?.includes('UNREAD') ?? false,
     starred: msg.labelIds?.includes('STARRED') ?? false,
+  };
+}
+
+export function extractAttachmentNames(payload: GmailPart): string[] {
+  const names: string[] = [];
+  const walk = (part: GmailPart) => {
+    if (part.filename) names.push(part.filename);
+    part.parts?.forEach(walk);
+  };
+  walk(payload);
+  return names;
+}
+
+export interface GmailDraft {
+  id: string;
+  message: GmailMessage;
+}
+
+export interface Draft {
+  draftId: string;
+  to: string;
+  subject: string;
+  body: string;
+  threadId?: string;
+  attachmentNames: string[];
+  date: string; // ISO 8601
+}
+
+export function parseDraft(draft: GmailDraft): Draft {
+  const headers = draft.message.payload.headers;
+  return {
+    draftId: draft.id,
+    to: header(headers, 'To'),
+    subject: header(headers, 'Subject'),
+    body: extractBodies(draft.message.payload).text,
+    threadId: draft.message.threadId,
+    attachmentNames: extractAttachmentNames(draft.message.payload),
+    date: new Date(Number(draft.message.internalDate)).toISOString(),
   };
 }
 
@@ -325,4 +364,32 @@ export async function sendEmail(mail: OutgoingMail): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
   });
+}
+
+export async function listDrafts(): Promise<Draft[]> {
+  const list = await api<{ drafts?: { id: string }[] }>('/drafts?maxResults=25');
+  const refs = list.drafts ?? [];
+  const drafts = await Promise.all(
+    refs.map((d) => api<GmailDraft>(`/drafts/${d.id}?format=full`).catch(() => null)),
+  );
+  return drafts.filter((d): d is GmailDraft => d !== null).map(parseDraft);
+}
+
+export async function saveDraft(mail: OutgoingMail, draftId?: string): Promise<string> {
+  const payload = JSON.stringify({
+    message: { raw: toBase64Url(buildMime(mail)), threadId: mail.threadId },
+  });
+  const saved = draftId
+    ? await api<GmailDraft>(`/drafts/${draftId}`, { method: 'PUT', body: payload })
+    : await api<GmailDraft>('/drafts', { method: 'POST', body: payload });
+  return saved.id;
+}
+
+export async function deleteDraft(draftId: string): Promise<void> {
+  if (!accessToken) throw new Error('not-connected');
+  const res = await fetch(`${BASE}/drafts/${draftId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`gmail-${res.status}`);
 }
