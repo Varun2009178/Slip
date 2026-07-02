@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Email } from '../lib/types';
 import type { Attachment, Draft, OutgoingMail } from '../lib/gmail';
+import { sanitizeHtml } from '../lib/html';
+import RichEditor from './RichEditor';
 
 interface Props {
   replyTo?: Email;
@@ -35,22 +37,21 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
     draft?.subject ??
       (replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : ''),
   );
-  const [body, setBody] = useState(draft?.body ?? '');
   const [attachments, setAttachments] = useState<Attached[]>([]);
   const [busy, setBusy] = useState<'send' | 'save' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    bodyRef.current?.focus();
-  }, []);
-
   function currentMail(): OutgoingMail {
+    const el = editorRef.current;
+    const text = el?.innerText.trim() ?? '';
+    const html = el ? sanitizeHtml(el.innerHTML) : '';
     return {
       to: to.trim(),
       subject,
-      body,
+      body: text,
+      bodyHtml: html || undefined,
       threadId: draft?.threadId ?? replyTo?.threadId,
       inReplyTo: replyTo?.rfcMessageId || undefined,
       attachments: attachments.length ? attachments : undefined,
@@ -82,18 +83,19 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
 
   async function trySend() {
     if (busy) return;
-    if (!to.trim()) {
+    const mail = currentMail();
+    if (!mail.to) {
       setError('Add a recipient');
       return;
     }
-    if (!body.trim() && attachments.length === 0) {
+    if (!mail.body && attachments.length === 0) {
       setError('Write something first');
       return;
     }
     setBusy('send');
     setError(null);
     try {
-      await onSend(currentMail(), draft?.draftId);
+      await onSend(mail, draft?.draftId);
     } catch {
       setError("Couldn't send — try again");
       setBusy(null);
@@ -102,14 +104,15 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
 
   async function trySave() {
     if (busy) return;
-    if (!to.trim() && !subject.trim() && !body.trim() && attachments.length === 0) {
+    const mail = currentMail();
+    if (!mail.to && !mail.subject.trim() && !mail.body && attachments.length === 0) {
       setError('Nothing to save');
       return;
     }
     setBusy('save');
     setError(null);
     try {
-      await onSaveDraft(currentMail(), draft?.draftId);
+      await onSaveDraft(mail, draft?.draftId);
     } catch {
       setError("Couldn't save — try again");
       setBusy(null);
@@ -153,13 +156,8 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
       />
-      <textarea
-        ref={bodyRef}
-        className="body-input"
-        placeholder="Write…"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-      />
+
+      <RichEditor editorRef={editorRef} initialHtml={draft?.bodyHtml} initialText={draft?.body} />
 
       <footer className="attach-bar">
         <input
