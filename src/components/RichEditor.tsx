@@ -56,6 +56,32 @@ export default function RichEditor({ initialHtml, initialText, editorRef }: Prop
     document.execCommand(cmd, false, value);
   }
 
+  // Setting hiliteColor to transparent visually clears a highlight, but leaves
+  // `background-color: transparent` spans behind — strip those so the HTML
+  // (and therefore the sent email) is genuinely back to normal.
+  function dropTransparentBackgrounds() {
+    editorRef.current?.querySelectorAll<HTMLElement>('[style*="background"]').forEach((n) => {
+      const bg = n.style.backgroundColor;
+      if (bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)' || bg === 'initial') {
+        n.style.removeProperty('background-color');
+        if (!n.style.length) n.removeAttribute('style');
+      }
+    });
+  }
+
+  function removeHighlight() {
+    exec('hiliteColor', 'transparent');
+    dropTransparentBackgrounds();
+  }
+
+  function clearFormatting() {
+    exec('removeFormat');
+    exec('formatBlock', 'div');
+    // removeFormat doesn't reliably strip highlight spans — finish the job
+    exec('hiliteColor', 'transparent');
+    dropTransparentBackgrounds();
+  }
+
   // Buttons use onMouseDown+preventDefault so the editor selection never collapses.
   const btn = (label: React.ReactNode, title: string, cmd: string, value?: string) => (
     <button title={title} onMouseDown={(e) => { e.preventDefault(); exec(cmd, value); }}>
@@ -95,6 +121,15 @@ export default function RichEditor({ initialHtml, initialText, editorRef }: Prop
           <span className="tb-hl">A</span>
           <input type="color" defaultValue="#fff3a3" onInput={(e) => execSaved('hiliteColor', e.currentTarget.value)} />
         </label>
+        <button
+          title="Remove highlight"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            removeHighlight();
+          }}
+        >
+          <span className="tb-nohl">A</span>
+        </button>
         <select
           title="Font"
           value=""
@@ -124,8 +159,7 @@ export default function RichEditor({ initialHtml, initialText, editorRef }: Prop
           title="Clear formatting"
           onMouseDown={(e) => {
             e.preventDefault();
-            exec('removeFormat');
-            exec('formatBlock', 'div');
+            clearFormatting();
           }}
         >
           ⌫A

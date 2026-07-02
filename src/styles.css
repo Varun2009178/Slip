@@ -396,3 +396,11 @@ kbd {
 .rich-body h2 { margin: 0.6em 0 0.3em; }
 .rich-body a { color: var(--accent); }
 .rich-body ul, .rich-body ol { padding-left: 1.4rem; }
+
+.tb-nohl {
+  background: linear-gradient(to top right, transparent 44%, #c0392b 46%, #c0392b 54%, transparent 56%), #fff3a3;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  color: #1c1c1a;
+}
