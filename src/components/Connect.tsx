@@ -6,6 +6,24 @@ interface Props {
   onConnect: () => void;
 }
 
+// An envelope with a paper slip that rises out of it on load. The pocket is
+// drawn after the slip and filled, so the slip stays hidden "inside" until
+// the animation lifts it above the pocket's top edge.
+function SlipAnimation() {
+  return (
+    <svg className="slip-logo" width="88" height="88" viewBox="0 0 96 96" aria-hidden="true">
+      <g className="slip-paper">
+        <rect x="30" y="18" width="36" height="30" rx="3" fill="#ffffff" stroke="#1d1c1a" strokeWidth="2.5" />
+        <line x1="37" y1="27" x2="59" y2="27" stroke="#c9c8c5" strokeWidth="2" strokeLinecap="round" />
+        <line x1="37" y1="34" x2="59" y2="34" stroke="#c9c8c5" strokeWidth="2" strokeLinecap="round" />
+        <line x1="37" y1="41" x2="51" y2="41" stroke="#c9c8c5" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      <rect x="16" y="46" width="64" height="34" rx="6" fill="#ffffff" stroke="#1d1c1a" strokeWidth="2.5" />
+      <path d="M18 50 L48 66 L78 50" fill="none" stroke="#1d1c1a" strokeWidth="2.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function Connect({ error, onConnect }: Props) {
   const [hasClientId, setHasClientId] = useState(() => !!getClientId());
   const [idInput, setIdInput] = useState('');
@@ -19,8 +37,10 @@ export default function Connect({ error, onConnect }: Props) {
 
   return (
     <div className="connect">
-      <h1>Slip</h1>
-      <p className="tagline">A minimalistic email browser.</p>
+      <SlipAnimation />
+      <h1 className="connect-sentence">
+        <strong>Slip</strong>, the most minimalistic email on the web.
+      </h1>
       {hasClientId ? (
         <button className="send connect-cta" onClick={onConnect}>
           Connect Gmail

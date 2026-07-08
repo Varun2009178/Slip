@@ -15,6 +15,16 @@ function svgProps(size: number) {
   } as const;
 }
 
+export function SlipMark({ size = 18 }: IconProps) {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M5.5 7V3.6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7" />
+      <rect x="1.8" y="7.2" width="12.4" height="6.3" rx="1.4" />
+      <path d="m2.4 8.2 5.6 3 5.6-3" />
+    </svg>
+  );
+}
+
 export function IconInbox({ size = 16 }: IconProps) {
   return (
     <svg {...svgProps(size)}>

@@ -1,6 +1,6 @@
 import type { Section } from './Inbox';
 import type { Profile } from '../lib/gmail';
-import { IconCheck, IconCompose, IconDraft, IconInbox } from './icons';
+import { IconCheck, IconCompose, IconDraft, IconInbox, SlipMark } from './icons';
 
 interface Props {
   section: Section;
@@ -37,7 +37,7 @@ export default function Sidebar({
   return (
     <nav className="sidebar">
       <div className="side-brand">
-        <img className="brand-logo" src="/favicon.svg" alt="" />
+        <SlipMark />
         <span className="brand-name">{profile?.name ? `${profile.name}’s Mail` : 'Slip Mail'}</span>
         <button className="icon-btn" title="Compose (C)" onClick={onCompose}>
           <IconCompose />
