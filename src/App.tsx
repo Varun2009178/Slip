@@ -6,6 +6,7 @@ import {
   deleteDraft,
   fetchInbox,
   fetchMessage,
+  fetchProfile,
   fetchThread,
   listDrafts,
   markRead,
@@ -14,6 +15,7 @@ import {
   unarchive,
   type Draft,
   type OutgoingMail,
+  type Profile,
 } from './lib/gmail';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
@@ -21,6 +23,7 @@ import Connect from './components/Connect';
 import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
+import Sidebar from './components/Sidebar';
 
 type View =
   | { name: 'list' }
@@ -76,6 +79,7 @@ export default function App() {
   const [fadingIds, setFadingIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
 
   useEffect(() => {
@@ -124,6 +128,7 @@ export default function App() {
     setConnectError(null);
     try {
       await connect();
+      fetchProfile().then(setProfile).catch(() => undefined);
       setEmails(await fetchInbox());
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
@@ -136,6 +141,7 @@ export default function App() {
   }
 
   function navigate(target: Section) {
+    setView({ name: 'list' });
     setSection(target);
     if (target === 'read') {
       setDoneEmails(null);
@@ -323,34 +329,42 @@ export default function App() {
   const readingEmail = view.name === 'reading' ? activeList.find((m) => m.id === view.id) : undefined;
 
   return (
-    <div className="app">
-      {view.name === 'list' && (
-        <Inbox
-          mode={section}
-          emails={activeList}
-          selectedId={selectedId}
-          fadingIds={fadingIds}
-          loading={loading}
-          theme={theme}
-          onOpen={openEmail}
-          onSelect={setSelectedId}
-          onCompose={() => setView({ name: 'composing' })}
-          onRefresh={refresh}
-          onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
-          onNavigate={navigate}
-        />
-      )}
-      {readingEmail && (
-        <Reader
-          email={readingEmail}
-          earlier={thread}
-          fading={fadingIds.includes(readingEmail.id)}
-          doneLabel={section === 'read' ? 'Restore' : 'Done'}
-          onBack={() => setView({ name: 'list' })}
-          onDone={() => dismiss(readingEmail.id)}
-          onReply={() => setView({ name: 'composing', replyTo: readingEmail })}
-        />
-      )}
+    <div className="shell">
+      <Sidebar
+        section={section}
+        inboxCount={inbox.length}
+        draftsCount={drafts?.length ?? null}
+        profile={profile}
+        theme={theme}
+        onNavigate={navigate}
+        onCompose={() => setView({ name: 'composing' })}
+        onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
+      />
+      <main className="pane">
+        {(view.name === 'list' || view.name === 'composing') && (
+          <Inbox
+            mode={section}
+            emails={activeList}
+            selectedId={selectedId}
+            fadingIds={fadingIds}
+            loading={loading}
+            onOpen={openEmail}
+            onSelect={setSelectedId}
+            onRefresh={refresh}
+          />
+        )}
+        {readingEmail && (
+          <Reader
+            email={readingEmail}
+            earlier={thread}
+            fading={fadingIds.includes(readingEmail.id)}
+            doneLabel={section === 'read' ? 'Restore' : 'Done'}
+            onBack={() => setView({ name: 'list' })}
+            onDone={() => dismiss(readingEmail.id)}
+            onReply={() => setView({ name: 'composing', replyTo: readingEmail })}
+          />
+        )}
+      </main>
       {view.name === 'composing' && (
         <Composer
           replyTo={view.replyTo}

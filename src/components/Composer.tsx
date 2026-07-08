@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Email } from '../lib/types';
 import type { Attachment, Draft, OutgoingMail } from '../lib/gmail';
 import { sanitizeHtml } from '../lib/html';
 import RichEditor from './RichEditor';
+import { IconClip } from './icons';
 
 interface Props {
   replyTo?: Email;
@@ -38,10 +39,20 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
       (replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : ''),
   );
   const [attachments, setAttachments] = useState<Attached[]>([]);
+  const [showTools, setShowTools] = useState(false);
   const [busy, setBusy] = useState<'send' | 'save' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const toRef = useRef<HTMLInputElement>(null);
+
+  // RichEditor focuses the body on mount; for a fresh message the recipient
+  // field is the natural starting point. Parent effects run after children's,
+  // so this wins.
+  useEffect(() => {
+    if (!to) toRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function currentMail(): OutgoingMail {
     const el = editorRef.current;
@@ -132,64 +143,95 @@ export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft 
   }
 
   return (
-    <div className="composer" onKeyDown={handleKeyDown}>
-      <header className="composer-nav">
-        <button onClick={onClose}>
-          ← Discard<kbd>Esc</kbd>
-        </button>
-        <div>
-          <button onClick={trySave} disabled={!!busy}>
-            {busy === 'save' ? 'Saving…' : 'Save draft'}
-            <kbd>⌘S</kbd>
+    <div className="compose-overlay">
+      <div className="compose-card" onKeyDown={handleKeyDown}>
+        <header className="compose-head">
+          {replyTo ? 'Reply' : draft ? 'Draft' : 'New message'}
+          <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
+            ×
           </button>
+        </header>
+
+        <div className="compose-row">
+          <span className="row-label">To</span>
+          <input
+            ref={toRef}
+            className="row-input"
+            placeholder="Add recipient"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        <div className="compose-row">
+          <input
+            className="row-input subject"
+            placeholder="Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+
+        <RichEditor
+          editorRef={editorRef}
+          initialHtml={draft?.bodyHtml}
+          initialText={draft?.body}
+          toolbar={showTools}
+        />
+
+        {(attachments.length > 0 || (draft && draft.attachmentNames.length > 0)) && (
+          <div className="attach-bar">
+            {attachments.map((a, i) => (
+              <span key={`${a.filename}-${i}`} className="chip">
+                {a.filename} <span className="chip-size">{formatSize(a.size)}</span>
+                <button
+                  className="chip-x"
+                  title="Remove"
+                  onClick={() => setAttachments((list) => list.filter((_, j) => j !== i))}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {draft && draft.attachmentNames.length > 0 && attachments.length === 0 && (
+              <span className="chip chip-note" title="Images from the saved draft aren't carried over — re-add them">
+                re-add: {draft.attachmentNames.join(', ')}
+              </span>
+            )}
+          </div>
+        )}
+
+        <footer className="compose-foot">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => void addFiles(e.target.files)}
+          />
+          <button
+            className={showTools ? 'icon-btn tools-toggle on' : 'icon-btn tools-toggle'}
+            title="Formatting"
+            onClick={() => setShowTools((s) => !s)}
+          >
+            Aa
+          </button>
+          <button
+            className="icon-btn"
+            title="Attach images"
+            onClick={() => fileRef.current?.click()}
+            disabled={!!busy}
+          >
+            <IconClip />
+          </button>
+          {error && <span className="ai-error">{error}</span>}
+          {busy === 'save' && <span className="compose-status">Saving…</span>}
+          <span className="spacer" />
           <button className="send" onClick={trySend} disabled={!!busy}>
             {busy === 'send' ? 'Sending…' : 'Send'}
-            <kbd>⌘↵</kbd>
           </button>
-        </div>
-      </header>
-
-      <input className="field" placeholder="To" value={to} onChange={(e) => setTo(e.target.value)} />
-      <input
-        className="field subject"
-        placeholder="Subject"
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-      />
-
-      <RichEditor editorRef={editorRef} initialHtml={draft?.bodyHtml} initialText={draft?.body} />
-
-      <footer className="attach-bar">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => void addFiles(e.target.files)}
-        />
-        <button onClick={() => fileRef.current?.click()} disabled={!!busy}>
-          + Add images
-        </button>
-        {attachments.map((a, i) => (
-          <span key={`${a.filename}-${i}`} className="chip">
-            {a.filename} <span className="chip-size">{formatSize(a.size)}</span>
-            <button
-              className="chip-x"
-              title="Remove"
-              onClick={() => setAttachments((list) => list.filter((_, j) => j !== i))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        {draft && draft.attachmentNames.length > 0 && attachments.length === 0 && (
-          <span className="chip chip-note" title="Images from the saved draft aren't carried over — re-add them">
-            re-add: {draft.attachmentNames.join(', ')}
-          </span>
-        )}
-        {error && <span className="ai-error">{error}</span>}
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

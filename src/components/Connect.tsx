@@ -19,17 +19,12 @@ export default function Connect({ error, onConnect }: Props) {
 
   return (
     <div className="connect">
-      <h1>Mail</h1>
+      <h1>Slip</h1>
+      <p className="tagline">A minimalistic email browser.</p>
       {hasClientId ? (
-        <>
-          <p className="connect-note">Sign in with Google to load your inbox.</p>
-          <button className="send" onClick={onConnect}>
-            Connect Gmail
-          </button>
-          <button className="connect-reset" onClick={() => setHasClientId(false)}>
-            Use a different Client ID
-          </button>
-        </>
+        <button className="send connect-cta" onClick={onConnect}>
+          Connect Gmail
+        </button>
       ) : (
         <>
           <p className="connect-note">

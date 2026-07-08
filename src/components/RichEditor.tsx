@@ -4,6 +4,7 @@ import { sanitizeHtml } from '../lib/html';
 interface Props {
   initialHtml?: string | null;
   initialText?: string;
+  toolbar?: boolean;
   editorRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -22,7 +23,7 @@ const SIZES: [string, string][] = [
   ['Huge', '7'],
 ];
 
-export default function RichEditor({ initialHtml, initialText, editorRef }: Props) {
+export default function RichEditor({ initialHtml, initialText, toolbar = true, editorRef }: Props) {
   const savedRange = useRef<Range | null>(null);
 
   useEffect(() => {
@@ -91,7 +92,10 @@ export default function RichEditor({ initialHtml, initialText, editorRef }: Prop
 
   return (
     <div className="editor-wrap">
-      <div className="toolbar">
+      {/* Keys keep React from recycling the contentEditable div (whose content
+          lives in the DOM, not state) when the toolbar mounts/unmounts. */}
+      {toolbar && (
+      <div className="toolbar" key="toolbar">
         {btn(<b>B</b>, 'Bold (⌘B)', 'bold')}
         {btn(<i>I</i>, 'Italic (⌘I)', 'italic')}
         {btn(<u>U</u>, 'Underline (⌘U)', 'underline')}
@@ -165,7 +169,9 @@ export default function RichEditor({ initialHtml, initialText, editorRef }: Prop
           ⌫A
         </button>
       </div>
+      )}
       <div
+        key="body"
         ref={editorRef}
         className="rich-body"
         contentEditable

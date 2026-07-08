@@ -1,10 +1,16 @@
 import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
 import Avatar from './Avatar';
+import { IconCheck, IconDraft, IconInbox } from './icons';
 
 export type Section = 'inbox' | 'read' | 'drafts';
 
 const TITLES: Record<Section, string> = { inbox: 'Inbox', read: 'Read', drafts: 'Drafts' };
+const ICONS: Record<Section, React.ReactNode> = {
+  inbox: <IconInbox />,
+  read: <IconCheck />,
+  drafts: <IconDraft />,
+};
 const EMPTY: Record<Section, string> = {
   inbox: 'All done.',
   read: 'Nothing here yet — press E on an email.',
@@ -17,13 +23,9 @@ interface Props {
   selectedId: string | null;
   fadingIds: string[];
   loading: boolean;
-  theme: 'default' | 'paper';
   onOpen: (id: string) => void;
   onSelect: (id: string) => void;
-  onCompose: () => void;
   onRefresh: () => void;
-  onToggleTheme: () => void;
-  onNavigate: (section: Section) => void;
 }
 
 export default function Inbox({
@@ -32,46 +34,22 @@ export default function Inbox({
   selectedId,
   fadingIds,
   loading,
-  theme,
   onOpen,
   onSelect,
-  onCompose,
   onRefresh,
-  onToggleTheme,
-  onNavigate,
 }: Props) {
-  const isInbox = mode === 'inbox';
   return (
     <div>
-      <header className="inbox-header">
-        <h1>{TITLES[mode]}</h1>
-        <div>
-          {isInbox ? (
-            <>
-              <button onClick={() => onNavigate('drafts')}>Drafts</button>
-              <button onClick={() => onNavigate('read')}>Read</button>
-            </>
-          ) : (
-            <button onClick={() => onNavigate('inbox')}>← Inbox</button>
-          )}
-          <button
-            className="theme-toggle"
-            onClick={onToggleTheme}
-            title={theme === 'paper' ? 'Switch to plain theme' : 'Switch to paper theme'}
-          >
-            {theme === 'paper' ? '○' : '●'}
+      <header className="pane-head">
+        <h1>
+          {ICONS[mode]}
+          {TITLES[mode]}
+        </h1>
+        {mode === 'inbox' && (
+          <button className="pane-action" onClick={onRefresh} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
           </button>
-          {isInbox && (
-            <>
-              <button onClick={onRefresh} disabled={loading} title="Refresh">
-                {loading ? '…' : '↻'}
-              </button>
-              <button onClick={onCompose}>
-                Compose<kbd>C</kbd>
-              </button>
-            </>
-          )}
-        </div>
+        )}
       </header>
 
       {loading && emails.length === 0 ? (
@@ -113,7 +91,7 @@ export default function Inbox({
         <span><kbd>↑↓</kbd> navigate</span>
         <span><kbd>↵</kbd> open</span>
         <span><kbd>E</kbd> {mode === 'inbox' ? 'done' : mode === 'read' ? 'restore' : 'delete'}</span>
-        {isInbox && <span><kbd>C</kbd> compose</span>}
+        {mode === 'inbox' && <span><kbd>C</kbd> compose</span>}
         <span><kbd>Esc</kbd> back</span>
       </footer>
     </div>

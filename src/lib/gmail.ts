@@ -242,15 +242,18 @@ export function toBase64Url(ascii: string): string {
 // ── Auth (Google Identity Services) ────────────────────────
 
 const CLIENT_ID_KEY = 'tiny-mail-client-id';
-const SCOPES = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send';
+const SCOPES =
+  'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.profile';
 
 let accessToken: string | null = null;
 
+// A build-time client ID (set VITE_GOOGLE_CLIENT_ID when deploying) skips the
+// paste-in setup entirely; a locally saved one still wins so it can be overridden.
 export function getClientId(): string | null {
   try {
-    return localStorage.getItem(CLIENT_ID_KEY);
+    return localStorage.getItem(CLIENT_ID_KEY) ?? import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
   } catch {
-    return null;
+    return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
   }
 }
 
@@ -319,6 +322,21 @@ export async function connect(): Promise<void> {
 
 export function isConnected(): boolean {
   return accessToken !== null;
+}
+
+export interface Profile {
+  name: string;
+  picture: string | null;
+}
+
+export async function fetchProfile(): Promise<Profile> {
+  if (!accessToken) throw new Error('not-connected');
+  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`userinfo-${res.status}`);
+  const d = (await res.json()) as { given_name?: string; name?: string; picture?: string };
+  return { name: d.given_name ?? d.name ?? '', picture: d.picture ?? null };
 }
 
 // ── API calls ──────────────────────────────────────────────
