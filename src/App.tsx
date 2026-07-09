@@ -19,7 +19,7 @@ import {
 } from './lib/gmail';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
-import Connect, { SlipAnimation } from './components/Connect';
+import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
 import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
@@ -137,10 +137,14 @@ export default function App() {
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
+      // Non-test-users end at Google's "access blocked" page and either get
+      // access_denied or just close the popup — both read as "not on the list".
       setConnectError(
-        msg === 'auth-failed' || msg === 'missing-client-id'
-          ? "Couldn't connect — check the Client ID and that you're a test user"
-          : `Couldn't connect: ${msg}`,
+        /access_denied|popup_closed/i.test(msg)
+          ? DENIED_ERROR
+          : msg === 'auth-failed' || msg === 'missing-client-id'
+            ? "Couldn't connect — check the Client ID and that you're a test user"
+            : `Couldn't connect: ${msg}`,
       );
     }
   }

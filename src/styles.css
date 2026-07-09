@@ -569,13 +569,37 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .slip-paper, .connect-sentence, .connect-cta,
+  .slip-paper, .connect-sentence, .connect-cta, .connect-mobile, .connect-denied,
   .connect .connect-note, .connect .field, .connect .connect-steps,
   .shell.entering .sidebar, .shell.entering .pane { animation: none; }
   .enter-overlay { display: none; }
 }
 .connect .field { width: 100%; }
 .connect-note { color: var(--muted); margin: 0; line-height: 1.5; }
+.connect-denied {
+  font-size: 1.35rem;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.4;
+  animation: fade-up 0.4s ease both;
+}
+.connect-denied a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.connect-denied a:hover { color: var(--muted); }
+
+/* On phones: just the slip, the sentence, and a nudge toward a real screen. */
+.connect-mobile { display: none; }
+@media (max-width: 640px) {
+  .app { min-height: 100svh; }
+  .connect-mobile {
+    display: block;
+    color: var(--muted);
+    font-size: 1.05rem;
+    margin: 0;
+    animation: fade-up 0.6s ease 0.95s both;
+  }
+  .connect > :not(.slip-logo, .connect-sentence, .connect-mobile) { display: none; }
+  .connect-sentence { font-size: 1.9rem; }
+}
 .connect-reset { color: var(--muted); font-size: 0.82rem; padding-left: 0; }
 .connect-steps { color: var(--muted); font-size: 0.85rem; line-height: 1.6; text-align: left; }
 .connect-steps summary { cursor: pointer; }

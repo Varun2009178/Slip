@@ -6,6 +6,9 @@ interface Props {
   onConnect: () => void;
 }
 
+// Shown when Google turns someone away (not on the test-user list).
+export const DENIED_ERROR = "sorry, you aren't cool enough to access slip yet. dm me!";
+
 // An envelope with a paper slip that rises out of it on load. The pocket is
 // drawn after the slip and filled, so the slip stays hidden "inside" until
 // the animation lifts it above the pocket's top edge. Also played by the
@@ -42,6 +45,7 @@ export default function Connect({ error, onConnect }: Props) {
       <h1 className="connect-sentence">
         <strong>Slip</strong>, the most minimal email on the web.
       </h1>
+      <p className="connect-mobile">100,000x better on a computer.</p>
       {hasClientId ? (
         <button className="send connect-cta" onClick={onConnect}>
           Connect Gmail
@@ -80,7 +84,16 @@ export default function Connect({ error, onConnect }: Props) {
           </details>
         </>
       )}
-      {error && <p className="ai-error">{error}</p>}
+      {error === DENIED_ERROR ? (
+        <p className="connect-denied">
+          sorry, you aren't cool enough to access slip yet.{' '}
+          <a href="https://x.com/vazuzu_varun" target="_blank" rel="noreferrer">
+            dm me!
+          </a>
+        </p>
+      ) : (
+        error && <p className="ai-error">{error}</p>
+      )}
     </div>
   );
 }
