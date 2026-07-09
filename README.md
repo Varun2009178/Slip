@@ -52,3 +52,24 @@ re-do the (instant) popup after a reload or about an hour.
 ## Keys
 
 `↑↓` navigate · `Enter` open · `E` done · `C` compose · `R` reply · `Esc` back · `⌘Enter` send · `⌘S` save draft
+
+## Deploying to production
+
+The app is static files — host `npm run build`'s `dist/` anywhere. On the
+Google Cloud side:
+
+1. **Credentials → your OAuth client → Authorized JavaScript origins**: add
+   your production origin, e.g. `https://mail.example.com` — scheme + host
+   (+ port if non-standard) only, no path, no trailing slash. Keep
+   `http://localhost:5173` for local dev.
+2. **Authorized redirect URIs**: leave empty — the app uses the Google
+   Identity Services *token* (popup) flow, which doesn't redirect.
+3. Build with `VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com` so
+   users skip the paste-a-client-ID screen (a locally saved ID still wins).
+4. **OAuth consent screen**: while it's in *Testing*, only the test users you
+   list (max 100) can sign in. Publishing it to *Production* is required for
+   the general public — but the Gmail scopes this app uses
+   (`gmail.modify`, `gmail.send`) are **restricted scopes**, so publishing
+   triggers Google's app verification (privacy policy, domain verification,
+   and a paid third-party security assessment). For personal use, staying in
+   Testing mode and adding yourself as a test user is the practical choice.

@@ -19,7 +19,7 @@ import {
 } from './lib/gmail';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
-import Connect from './components/Connect';
+import Connect, { SlipAnimation } from './components/Connect';
 import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
@@ -40,6 +40,7 @@ interface Toast {
 
 const FADE_MS = 250;
 const TOAST_MS = 5000;
+const ENTER_MS = 1100;
 const THEME_KEY = 'tiny-mail-theme';
 
 function loadTheme(): Theme {
@@ -81,6 +82,7 @@ export default function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [entering, setEntering] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -129,7 +131,10 @@ export default function App() {
     try {
       await connect();
       fetchProfile().then(setProfile).catch(() => undefined);
-      setEmails(await fetchInbox());
+      const inbox = await fetchInbox();
+      setEntering(true);
+      setEmails(inbox);
+      window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
       setConnectError(
@@ -329,7 +334,12 @@ export default function App() {
   const readingEmail = view.name === 'reading' ? activeList.find((m) => m.id === view.id) : undefined;
 
   return (
-    <div className="shell">
+    <div className={entering ? 'shell entering' : 'shell'}>
+      {entering && (
+        <div className="enter-overlay" aria-hidden="true">
+          <SlipAnimation />
+        </div>
+      )}
       <Sidebar
         section={section}
         inboxCount={inbox.length}

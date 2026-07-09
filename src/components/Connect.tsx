@@ -8,8 +8,9 @@ interface Props {
 
 // An envelope with a paper slip that rises out of it on load. The pocket is
 // drawn after the slip and filled, so the slip stays hidden "inside" until
-// the animation lifts it above the pocket's top edge.
-function SlipAnimation() {
+// the animation lifts it above the pocket's top edge. Also played by the
+// sign-in transition overlay in App.
+export function SlipAnimation() {
   return (
     <svg className="slip-logo" width="88" height="88" viewBox="0 0 96 96" aria-hidden="true">
       <g className="slip-paper">
@@ -39,7 +40,7 @@ export default function Connect({ error, onConnect }: Props) {
     <div className="connect">
       <SlipAnimation />
       <h1 className="connect-sentence">
-        <strong>Slip</strong>, the most minimalistic email on the web.
+        <strong>Slip</strong>, the most minimal email on the web.
       </h1>
       {hasClientId ? (
         <button className="send connect-cta" onClick={onConnect}>
