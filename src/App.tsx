@@ -160,10 +160,11 @@ export default function App() {
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
-      // Non-test-users end at Google's "access blocked" page and either get
-      // access_denied or just close the popup — both read as "not on the list".
+      // Non-test-users end at Google's "access blocked" page (access_denied),
+      // close the popup (popup_closed), or slip through OAuth only to have the
+      // Gmail API itself refuse them (gmail-429/403) — all read as "not on the list".
       setConnectError(
-        /access_denied|popup_closed/i.test(msg)
+        /access_denied|popup_closed|gmail-429|gmail-403/i.test(msg)
           ? DENIED_ERROR
           : msg === 'auth-failed' || msg === 'missing-client-id'
             ? "Couldn't connect — check the Client ID and that you're a test user"
