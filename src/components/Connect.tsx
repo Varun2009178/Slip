@@ -45,6 +45,7 @@ export default function Connect({ error, onConnect }: Props) {
       <h1 className="connect-sentence">
         <strong>Slip</strong>, the most minimal email on the web.
       </h1>
+      <p className="connect-tag">Built for busy people.</p>
       <p className="connect-mobile">100,000x better on a computer.</p>
       {hasClientId ? (
         <button className="send connect-cta" onClick={onConnect}>

@@ -20,17 +20,25 @@ import {
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
+import CommandPalette from './components/CommandPalette';
+import Home from './components/Home';
+import type { Prefill } from './components/Composer';
+import type { Command } from './lib/commands';
 import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
 import Sidebar from './components/Sidebar';
 
 type View =
+  | { name: 'home' }
   | { name: 'list' }
   | { name: 'reading'; id: string }
-  | { name: 'composing'; replyTo?: Email; draft?: Draft };
+  | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 
 type Theme = 'default' | 'paper';
+type StartScreen = 'keys' | 'inbox';
+
+const FEATURE_EMAIL = 'varun@teyra.app';
 
 interface Toast {
   text: string;
@@ -42,12 +50,21 @@ const FADE_MS = 250;
 const TOAST_MS = 5000;
 const ENTER_MS = 1100;
 const THEME_KEY = 'tiny-mail-theme';
+const START_KEY = 'tiny-mail-start';
 
 function loadTheme(): Theme {
   try {
     return localStorage.getItem(THEME_KEY) === 'paper' ? 'paper' : 'default';
   } catch {
     return 'default';
+  }
+}
+
+function loadStart(): StartScreen {
+  try {
+    return localStorage.getItem(START_KEY) === 'inbox' ? 'inbox' : 'keys';
+  } catch {
+    return 'keys';
   }
 }
 
@@ -82,7 +99,9 @@ export default function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [start, setStart] = useState<StartScreen>(loadStart);
   const [entering, setEntering] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -134,6 +153,7 @@ export default function App() {
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
+      setView(start === 'keys' ? { name: 'home' } : { name: 'list' });
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
@@ -147,6 +167,22 @@ export default function App() {
             : `Couldn't connect: ${msg}`,
       );
     }
+  }
+
+  function toggleStart() {
+    setStart((s) => {
+      const next = s === 'keys' ? 'inbox' : 'keys';
+      try {
+        localStorage.setItem(START_KEY, next);
+      } catch {
+        // preference just won't persist
+      }
+      return next;
+    });
+  }
+
+  function requestFeature() {
+    setView({ name: 'composing', prefill: { to: FEATURE_EMAIL, subject: 'Slip feature request' } });
   }
 
   function navigate(target: Section) {
@@ -285,12 +321,40 @@ export default function App() {
     showToast({ text: 'Saved to drafts' });
   }
 
+  // ⌘K toggles the palette from anywhere except the composer (where a
+  // palette command could silently discard the draft).
+  useEffect(() => {
+    function onCmdK(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (emails !== null && view.name !== 'composing') setPaletteOpen((o) => !o);
+      }
+    }
+    window.addEventListener('keydown', onCmdK);
+    return () => window.removeEventListener('keydown', onCmdK);
+  }, [emails, view]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (view.name === 'composing' || emails === null) return;
+      if (view.name === 'composing' || emails === null || paletteOpen) return;
       const t = e.target as HTMLElement;
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (view.name === 'home') {
+        const k = e.key.toLowerCase();
+        if (k === 'i') navigate('inbox');
+        else if (k === 'c') {
+          e.preventDefault();
+          setView({ name: 'composing' });
+        } else if (k === 'd') navigate('drafts');
+        else if (k === 'r') navigate('read');
+        else if (k === 'f') {
+          e.preventDefault();
+          requestFeature();
+        }
+        return;
+      }
 
       if (view.name === 'list') {
         const idx = activeList.findIndex((m) => m.id === selectedId);
@@ -307,8 +371,9 @@ export default function App() {
         } else if (e.key.toLowerCase() === 'c' && section !== 'read') {
           e.preventDefault(); // keep the keystroke out of the autofocused composer
           setView({ name: 'composing' });
-        } else if (e.key === 'Escape' && section !== 'inbox') {
-          setSection('inbox');
+        } else if (e.key === 'Escape') {
+          if (section !== 'inbox') setSection('inbox');
+          else setView({ name: 'home' });
         }
       } else if (view.name === 'reading') {
         if (e.key.toLowerCase() === 'e') dismiss(view.id);
@@ -325,7 +390,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, activeList, selectedId, fadingIds, emails, section, drafts]);
+  }, [view, activeList, selectedId, fadingIds, emails, section, drafts, paletteOpen]);
 
   if (emails === null) {
     return (
@@ -336,6 +401,43 @@ export default function App() {
   }
 
   const readingEmail = view.name === 'reading' ? activeList.find((m) => m.id === view.id) : undefined;
+
+  const dismissLabel =
+    section === 'inbox' ? 'Mark done' : section === 'read' ? 'Restore to inbox' : 'Delete draft';
+  const commands: Command[] = [];
+  if (readingEmail) {
+    commands.push(
+      { id: 'reply', label: 'Reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: readingEmail }) },
+      { id: 'dismiss', label: dismissLabel, keys: 'E', run: () => dismiss(readingEmail.id) },
+      { id: 'back', label: 'Back to list', keys: 'Esc', run: () => setView({ name: 'list' }) },
+    );
+  } else if (view.name === 'list' && selectedId) {
+    commands.push(
+      { id: 'open', label: section === 'drafts' ? 'Open draft' : 'Open email', keys: '↵', run: () => openEmail(selectedId) },
+      { id: 'dismiss', label: dismissLabel, keys: 'E', run: () => dismiss(selectedId) },
+    );
+  }
+  commands.push({ id: 'compose', label: 'Compose', keys: 'C', run: () => setView({ name: 'composing' }) });
+  if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'Go to Inbox', run: () => navigate('inbox') });
+  if (section !== 'read') commands.push({ id: 'go-read', label: 'Go to Read', run: () => navigate('read') });
+  if (section !== 'drafts') commands.push({ id: 'go-drafts', label: 'Go to Drafts', run: () => navigate('drafts') });
+  if (view.name !== 'home') {
+    commands.push({ id: 'go-home', label: 'Go to Home', run: () => setView({ name: 'home' }) });
+  }
+  commands.push(
+    { id: 'refresh', label: 'Refresh inbox', run: refresh },
+    { id: 'feature', label: 'Request a feature', run: requestFeature },
+    {
+      id: 'start',
+      label: start === 'keys' ? 'Start in inbox after connecting' : 'Start with the key screen',
+      run: toggleStart,
+    },
+    {
+      id: 'theme',
+      label: theme === 'paper' ? 'Switch to plain theme' : 'Switch to paper theme',
+      run: () => setTheme((t) => (t === 'paper' ? 'default' : 'paper')),
+    },
+  );
 
   return (
     <div className={entering ? 'shell entering' : 'shell'}>
@@ -350,11 +452,23 @@ export default function App() {
         draftsCount={drafts?.length ?? null}
         profile={profile}
         theme={theme}
+        start={start}
         onNavigate={navigate}
         onCompose={() => setView({ name: 'composing' })}
         onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
+        onToggleStart={toggleStart}
+        onRequestFeature={requestFeature}
+        onHome={() => setView({ name: 'home' })}
       />
       <main className="pane">
+        {view.name === 'home' && (
+          <Home
+            onNavigate={navigate}
+            onCompose={() => setView({ name: 'composing' })}
+            onOpenPalette={() => setPaletteOpen(true)}
+            onRequestFeature={requestFeature}
+          />
+        )}
         {(view.name === 'list' || view.name === 'composing') && (
           <Inbox
             mode={section}
@@ -365,6 +479,7 @@ export default function App() {
             onOpen={openEmail}
             onSelect={setSelectedId}
             onRefresh={refresh}
+            onOpenPalette={() => setPaletteOpen(true)}
           />
         )}
         {readingEmail && (
@@ -383,11 +498,13 @@ export default function App() {
         <Composer
           replyTo={view.replyTo}
           draft={view.draft}
+          prefill={view.prefill}
           onClose={() => setView({ name: 'list' })}
           onSend={handleSend}
           onSaveDraft={handleSaveDraft}
         />
       )}
+      {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
       {toast && (
         <div className="toast">
           {toast.text}

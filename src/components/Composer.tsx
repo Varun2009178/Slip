@@ -5,9 +5,15 @@ import { sanitizeHtml } from '../lib/html';
 import RichEditor from './RichEditor';
 import { IconClip } from './icons';
 
+export interface Prefill {
+  to: string;
+  subject: string;
+}
+
 interface Props {
   replyTo?: Email;
   draft?: Draft;
+  prefill?: Prefill;
   onClose: () => void;
   onSend: (mail: OutgoingMail, draftId?: string) => Promise<void>;
   onSaveDraft: (mail: OutgoingMail, draftId?: string) => Promise<void>;
@@ -32,11 +38,15 @@ interface Attached extends Attachment {
   size: number;
 }
 
-export default function Composer({ replyTo, draft, onClose, onSend, onSaveDraft }: Props) {
-  const [to, setTo] = useState(draft?.to ?? replyTo?.fromEmail ?? '');
+export default function Composer({ replyTo, draft, prefill, onClose, onSend, onSaveDraft }: Props) {
+  const [to, setTo] = useState(draft?.to ?? replyTo?.fromEmail ?? prefill?.to ?? '');
   const [subject, setSubject] = useState(
     draft?.subject ??
-      (replyTo ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`) : ''),
+      (replyTo
+        ? replyTo.subject.startsWith('Re:')
+          ? replyTo.subject
+          : `Re: ${replyTo.subject}`
+        : (prefill?.subject ?? '')),
   );
   const [attachments, setAttachments] = useState<Attached[]>([]);
   const [showTools, setShowTools] = useState(false);

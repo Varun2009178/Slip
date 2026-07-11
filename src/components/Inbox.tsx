@@ -26,6 +26,7 @@ interface Props {
   onOpen: (id: string) => void;
   onSelect: (id: string) => void;
   onRefresh: () => void;
+  onOpenPalette: () => void;
 }
 
 export default function Inbox({
@@ -37,6 +38,7 @@ export default function Inbox({
   onOpen,
   onSelect,
   onRefresh,
+  onOpenPalette,
 }: Props) {
   return (
     <div>
@@ -50,6 +52,9 @@ export default function Inbox({
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         )}
+        <button className="pane-action" onClick={onOpenPalette} title="Command palette (⌘K)">
+          <kbd className="pane-kbd">⌘K</kbd> commands
+        </button>
       </header>
 
       {loading && emails.length === 0 ? (
@@ -92,6 +97,7 @@ export default function Inbox({
         <span><kbd>↵</kbd> open</span>
         <span><kbd>E</kbd> {mode === 'inbox' ? 'done' : mode === 'read' ? 'restore' : 'delete'}</span>
         {mode === 'inbox' && <span><kbd>C</kbd> compose</span>}
+        <span><kbd>⌘K</kbd> commands</span>
         <span><kbd>Esc</kbd> back</span>
       </footer>
     </div>
