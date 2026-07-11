@@ -28,6 +28,11 @@ Setting the client ID at build time makes visitors skip the paste-a-client-ID
 screen (a locally saved ID still overrides it). Deploy `dist/` and set the same
 env var in your host's build settings so every deploy gets it.
 
+`/privacy` and `/tos` are client-side routes — configure the host to rewrite
+every path to `index.html` (Netlify: `_redirects` with `/* /index.html 200`;
+Vercel: a catch-all rewrite in `vercel.json`; Cloudflare Pages: automatic for
+single-page apps).
+
 ## 3. Going public
 
 The Gmail scopes Slip uses (`gmail.modify`, `gmail.send`) are **restricted

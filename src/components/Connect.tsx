@@ -7,7 +7,7 @@ interface Props {
 }
 
 // Shown when Google turns someone away (not on the test-user list).
-export const DENIED_ERROR = "sorry, you aren't cool enough to access slip yet. dm me!";
+export const DENIED_ERROR = "sorry, you aren't cool enough to access slip yet. dm vazuzu_varun on X!";
 
 // An envelope with a paper slip that rises out of it on load. The pocket is
 // drawn after the slip and filled, so the slip stays hidden "inside" until
@@ -89,7 +89,7 @@ export default function Connect({ error, onConnect }: Props) {
         <p className="connect-denied">
           sorry, you aren't cool enough to access slip yet.{' '}
           <a href="https://x.com/vazuzu_varun" target="_blank" rel="noreferrer">
-            dm me!
+            dm vazuzu_varun on X!
           </a>
         </p>
       ) : (

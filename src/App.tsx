@@ -20,6 +20,9 @@ import {
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
+import Legal from './components/Legal';
+import Roadmap from './components/Roadmap';
+import Showcase from './components/Showcase';
 import CommandPalette from './components/CommandPalette';
 import Home from './components/Home';
 import type { Prefill } from './components/Composer';
@@ -392,10 +395,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [view, activeList, selectedId, fadingIds, emails, section, drafts, paletteOpen]);
 
+  // Tiny router: /privacy and /tos are standalone pages.
+  const path = window.location.pathname;
+  if (path === '/privacy' || path === '/tos') {
+    return <Legal page={path === '/tos' ? 'tos' : 'privacy'} />;
+  }
+
   if (emails === null) {
     return (
-      <div className="app">
-        <Connect error={connectError} onConnect={handleConnect} />
+      <div className="front">
+        <div className="app">
+          <Connect error={connectError} onConnect={handleConnect} />
+          <a className="scroll-hint" href="#tour">
+            ↓ see what’s inside
+          </a>
+        </div>
+        <Showcase />
+        <Roadmap />
       </div>
     );
   }
