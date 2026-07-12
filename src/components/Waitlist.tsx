@@ -7,12 +7,23 @@ interface Props {
 
 // formsubmit.co alias for varun@teyra.app — keeps the raw address out of the bundle.
 const WAITLIST_ENDPOINT = 'https://formsubmit.co/ajax/f9813b66e3f163ee34cce515e4e66acf';
+const JOINED_KEY = 'slip-waitlisted';
+
+function alreadyJoined(): boolean {
+  try {
+    return !!localStorage.getItem(JOINED_KEY);
+  } catch {
+    return false;
+  }
+}
 
 // The very front: nobody has access yet, so the hero is a waitlist.
 export default function Waitlist({ onHaveAccess }: Props) {
   const [email, setEmail] = useState('');
   const [excited, setExcited] = useState<'yes' | 'yes + 1' | null>(null);
-  const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>(() =>
+    alreadyJoined() ? 'done' : 'idle',
+  );
 
   const valid = /\S+@\S+\.\S+/.test(email.trim()) && excited !== null;
 
@@ -26,6 +37,11 @@ export default function Waitlist({ onHaveAccess }: Props) {
         body: JSON.stringify({ _subject: 'slip waitlist', email: email.trim(), excited }),
       });
       if (!res.ok) throw new Error('waitlist-failed');
+      try {
+        localStorage.setItem(JOINED_KEY, email.trim());
+      } catch {
+        // they'll just see the form again next visit
+      }
       setState('done');
     } catch {
       setState('error');
