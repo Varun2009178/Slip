@@ -370,6 +370,22 @@ export async function fetchInbox(): Promise<Email[]> {
   return messages.map(parseMessage);
 }
 
+// Sent rows read better as "To: recipient" — the sender is always you.
+export function sentRowFromMessage(msg: GmailMessage): Email {
+  const email = parseMessage(msg);
+  const to = parseSender(header(msg.payload.headers, 'To'));
+  return { ...email, from: `To: ${to.name || '(unknown)'}`, fromEmail: to.email };
+}
+
+export async function fetchSent(): Promise<Email[]> {
+  const list = await api<{ messages?: { id: string }[] }>('/messages?labelIds=SENT&maxResults=25');
+  const refs = list.messages ?? [];
+  const messages = await Promise.all(
+    refs.map((m) => api<GmailMessage>(`/messages/${m.id}?format=full`)),
+  );
+  return messages.map(sentRowFromMessage);
+}
+
 export async function fetchThread(threadId: string): Promise<Email[]> {
   const thread = await api<{ messages: GmailMessage[] }>(`/threads/${threadId}?format=full`);
   return thread.messages.map(parseMessage);

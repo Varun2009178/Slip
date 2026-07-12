@@ -10,6 +10,7 @@ import {
   parseDraft,
   parseMessage,
   parseSender,
+  sentRowFromMessage,
   stripHtml,
   toBase64Url,
   type GmailMessage,
@@ -396,5 +397,42 @@ describe('buildMime with html body', () => {
     const parsed = parseDraft(draft);
     expect(parsed.body).toBe('plain');
     expect(parsed.bodyHtml).toBe('<b>styled</b>');
+  });
+});
+
+describe('sentRowFromMessage', () => {
+  const msg: GmailMessage = {
+    id: 's1',
+    threadId: 't1',
+    snippet: 'see you thursday',
+    internalDate: '1760000000000',
+    labelIds: ['SENT'],
+    payload: {
+      mimeType: 'text/plain',
+      headers: [
+        { name: 'From', value: 'Varun Nukala <varun.k.nukala@gmail.com>' },
+        { name: 'To', value: 'Sarah Chen <sarah@nvp.vc>' },
+        { name: 'Subject', value: 'Thursday works' },
+      ],
+      body: { data: 'aGV5' },
+    },
+  };
+
+  it('shows the recipient, not the sender', () => {
+    const row = sentRowFromMessage(msg);
+    expect(row.from).toBe('To: Sarah Chen');
+    expect(row.fromEmail).toBe('sarah@nvp.vc');
+    expect(row.subject).toBe('Thursday works');
+  });
+
+  it('falls back to the bare address when there is no display name', () => {
+    const bare = {
+      ...msg,
+      payload: {
+        ...msg.payload,
+        headers: msg.payload.headers!.map((h) => (h.name === 'To' ? { ...h, value: 'sarah@nvp.vc' } : h)),
+      },
+    };
+    expect(sentRowFromMessage(bare).from).toBe('To: sarah@nvp.vc');
   });
 });

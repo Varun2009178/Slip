@@ -8,7 +8,7 @@ interface Props {
   email: Email;
   earlier: Email[] | null; // null = thread still loading
   fading: boolean;
-  doneLabel: string; // 'Done' in inbox, 'Restore' in the Read section
+  doneLabel?: string; // 'Done' in inbox, 'Restore' in Read; absent in Sent
   onBack: () => void;
   onDone: () => void;
   onReply: () => void;
@@ -27,9 +27,11 @@ export default function Reader({ email, earlier, fading, doneLabel, onBack, onDo
           <button onClick={onReply}>
             Reply<kbd>R</kbd>
           </button>
-          <button onClick={onDone}>
-            {doneLabel}<kbd>E</kbd>
-          </button>
+          {doneLabel && (
+            <button onClick={onDone}>
+              {doneLabel}<kbd>E</kbd>
+            </button>
+          )}
         </div>
       </header>
 

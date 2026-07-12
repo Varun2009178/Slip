@@ -7,6 +7,7 @@ import {
   fetchInbox,
   fetchMessage,
   fetchProfile,
+  fetchSent,
   fetchThread,
   listDrafts,
   markRead,
@@ -23,6 +24,7 @@ import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
+import Waitlist from './components/Waitlist';
 import CommandPalette from './components/CommandPalette';
 import Home from './components/Home';
 import type { Prefill } from './components/Composer';
@@ -54,6 +56,16 @@ const TOAST_MS = 5000;
 const ENTER_MS = 1100;
 const THEME_KEY = 'tiny-mail-theme';
 const START_KEY = 'tiny-mail-start';
+const ACCESS_KEY = 'slip-has-access';
+
+// Everyone hits the waitlist until they claim access once on this browser.
+function hasAccess(): boolean {
+  try {
+    return !!localStorage.getItem(ACCESS_KEY);
+  } catch {
+    return false;
+  }
+}
 
 function loadTheme(): Theme {
   try {
@@ -91,6 +103,7 @@ function draftRow(d: Draft): Email {
 export default function App() {
   const [emails, setEmails] = useState<Email[] | null>(null);
   const [doneEmails, setDoneEmails] = useState<Email[] | null>(null);
+  const [sentEmails, setSentEmails] = useState<Email[] | null>(null);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -103,6 +116,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [start, setStart] = useState<StartScreen>(loadStart);
+  const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -120,10 +134,12 @@ export default function App() {
     () =>
       section === 'read'
         ? (doneEmails ?? [])
-        : section === 'drafts'
-          ? (drafts ?? []).map(draftRow)
-          : inbox,
-    [section, doneEmails, drafts, inbox],
+        : section === 'sent'
+          ? (sentEmails ?? [])
+          : section === 'drafts'
+            ? (drafts ?? []).map(draftRow)
+            : inbox,
+    [section, doneEmails, sentEmails, drafts, inbox],
   );
 
   useEffect(() => {
@@ -199,6 +215,16 @@ export default function App() {
       Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)))
         .then((loaded) => setDoneEmails(loaded.filter((m): m is Email => m !== null)))
         .catch(() => setDoneEmails([]))
+        .finally(() => setLoading(false));
+    } else if (target === 'sent') {
+      setSentEmails(null);
+      setLoading(true);
+      fetchSent()
+        .then(setSentEmails)
+        .catch(() => {
+          setSentEmails([]);
+          showToast({ text: "Couldn't load sent mail" });
+        })
         .finally(() => setLoading(false));
     } else if (target === 'drafts') {
       setDrafts(null);
@@ -305,7 +331,15 @@ export default function App() {
     }, FADE_MS);
   }
 
-  const dismiss = section === 'read' ? restore : section === 'drafts' ? removeDraft : markDone;
+  // Sent mail has no dismiss action — it lives in Gmail's Sent label forever.
+  const dismiss =
+    section === 'read'
+      ? restore
+      : section === 'drafts'
+        ? removeDraft
+        : section === 'sent'
+          ? () => undefined
+          : markDone;
 
   async function handleSend(mail: OutgoingMail, draftId?: string) {
     await sendEmail(mail);
@@ -314,6 +348,7 @@ export default function App() {
       setDrafts((list) => list?.filter((d) => d.draftId !== draftId) ?? null);
     }
     setView({ name: 'list' });
+    if (section === 'sent') navigate('sent'); // refetch so the new mail shows
     showToast({ text: 'Sent' });
   }
 
@@ -353,6 +388,7 @@ export default function App() {
           setView({ name: 'composing' });
         } else if (k === 'd') navigate('drafts');
         else if (k === 'r') navigate('read');
+        else if (k === 's') navigate('sent');
         else if (k === 'f') {
           e.preventDefault();
           requestFeature();
@@ -406,7 +442,20 @@ export default function App() {
     return (
       <div className="front">
         <div className="app">
-          <Connect error={connectError} onConnect={handleConnect} />
+          {gate === 'waitlist' ? (
+            <Waitlist
+              onHaveAccess={() => {
+                try {
+                  localStorage.setItem(ACCESS_KEY, '1');
+                } catch {
+                  // choice just won't persist
+                }
+                setGate('connect');
+              }}
+            />
+          ) : (
+            <Connect error={connectError} onConnect={handleConnect} />
+          )}
           <a className="scroll-hint" href="#tour">
             ↓ see what’s inside
           </a>
@@ -437,6 +486,7 @@ export default function App() {
   commands.push({ id: 'compose', label: 'Compose', keys: 'C', run: () => setView({ name: 'composing' }) });
   if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'Go to Inbox', run: () => navigate('inbox') });
   if (section !== 'read') commands.push({ id: 'go-read', label: 'Go to Read', run: () => navigate('read') });
+  if (section !== 'sent') commands.push({ id: 'go-sent', label: 'Go to Sent', run: () => navigate('sent') });
   if (section !== 'drafts') commands.push({ id: 'go-drafts', label: 'Go to Drafts', run: () => navigate('drafts') });
   if (view.name !== 'home') {
     commands.push({ id: 'go-home', label: 'Go to Home', run: () => setView({ name: 'home' }) });
@@ -504,7 +554,7 @@ export default function App() {
             email={readingEmail}
             earlier={thread}
             fading={fadingIds.includes(readingEmail.id)}
-            doneLabel={section === 'read' ? 'Restore' : 'Done'}
+            doneLabel={section === 'sent' ? undefined : section === 'read' ? 'Restore' : 'Done'}
             onBack={() => setView({ name: 'list' })}
             onDone={() => dismiss(readingEmail.id)}
             onReply={() => setView({ name: 'composing', replyTo: readingEmail })}

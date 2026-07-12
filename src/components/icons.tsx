@@ -71,6 +71,14 @@ export function IconTrash({ size = 16 }: IconProps) {
   );
 }
 
+export function IconSent({ size = 16 }: IconProps) {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M13.8 2.2 7.2 8.8m6.6-6.6-4.3 11.3-2.3-4.7-4.7-2.3z" />
+    </svg>
+  );
+}
+
 export function IconGitHub({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 19 19" aria-hidden="true">

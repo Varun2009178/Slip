@@ -1,6 +1,6 @@
 import type { Section } from './Inbox';
 import type { Profile } from '../lib/gmail';
-import { IconCheck, IconCompose, IconDraft, IconGitHub, IconInbox, SlipMark } from './icons';
+import { IconCheck, IconCompose, IconDraft, IconGitHub, IconInbox, IconSent, SlipMark } from './icons';
 
 interface Props {
   section: Section;
@@ -20,6 +20,7 @@ interface Props {
 const ITEMS: { key: Section; label: string; icon: React.ReactNode }[] = [
   { key: 'inbox', label: 'Inbox', icon: <IconInbox /> },
   { key: 'read', label: 'Read', icon: <IconCheck /> },
+  { key: 'sent', label: 'Sent', icon: <IconSent /> },
   { key: 'drafts', label: 'Drafts', icon: <IconDraft /> },
 ];
 

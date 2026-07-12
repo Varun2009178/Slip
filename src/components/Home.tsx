@@ -14,6 +14,7 @@ export default function Home({ onNavigate, onCompose, onOpenPalette, onRequestFe
     { k: 'C', label: 'Compose', run: onCompose },
     { k: 'D', label: 'Drafts', run: () => onNavigate('drafts') },
     { k: 'R', label: 'Read', run: () => onNavigate('read') },
+    { k: 'S', label: 'Sent', run: () => onNavigate('sent') },
     { k: 'F', label: 'Request a feature', run: onRequestFeature },
     { k: '⌘K', label: 'Anything', run: onOpenPalette },
   ];
