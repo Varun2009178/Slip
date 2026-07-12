@@ -7,6 +7,7 @@ import {
   extractBodies,
   extractBody,
   header,
+  isRetriableGmailError,
   parseDraft,
   parseMessage,
   parseSender,
@@ -434,5 +435,28 @@ describe('sentRowFromMessage', () => {
       },
     };
     expect(sentRowFromMessage(bare).from).toBe('To: sarah@nvp.vc');
+  });
+});
+
+describe('isRetriableGmailError', () => {
+  it('retries 429 and 5xx regardless of body', () => {
+    expect(isRetriableGmailError(429, null)).toBe(true);
+    expect(isRetriableGmailError(500, null)).toBe(true);
+    expect(isRetriableGmailError(503, null)).toBe(true);
+  });
+
+  it('retries 403 only when the body says rate limit', () => {
+    const rate = { error: { errors: [{ reason: 'userRateLimitExceeded' }] } };
+    const rate2 = { error: { errors: [{ reason: 'rateLimitExceeded' }] } };
+    const denied = { error: { errors: [{ reason: 'accessNotConfigured' }] } };
+    expect(isRetriableGmailError(403, rate)).toBe(true);
+    expect(isRetriableGmailError(403, rate2)).toBe(true);
+    expect(isRetriableGmailError(403, denied)).toBe(false);
+    expect(isRetriableGmailError(403, null)).toBe(false);
+  });
+
+  it('never retries plain 4xx', () => {
+    expect(isRetriableGmailError(400, null)).toBe(false);
+    expect(isRetriableGmailError(404, null)).toBe(false);
   });
 });

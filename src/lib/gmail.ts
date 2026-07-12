@@ -343,22 +343,41 @@ export async function fetchProfile(): Promise<Profile> {
 
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
+// Gmail rate-limits bursts (connect fires ~26 requests at once) with 429, or
+// 403 whose body says rateLimitExceeded. Those are transient — retry them so a
+// legitimate user never sees a scary error; real refusals surface immediately.
+export function isRetriableGmailError(status: number, body: unknown): boolean {
+  if (status === 429 || status >= 500) return true;
+  if (status !== 403) return false;
+  const errors = (body as { error?: { errors?: { reason?: string }[] } })?.error?.errors ?? [];
+  return errors.some((e) => e.reason === 'rateLimitExceeded' || e.reason === 'userRateLimitExceeded');
+}
+
+const RETRIES = 3;
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!accessToken) throw new Error('not-connected');
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  });
-  if (res.status === 401) {
-    accessToken = null;
-    throw new Error('not-connected');
+  for (let attempt = 0; ; attempt++) {
+    if (!accessToken) throw new Error('not-connected');
+    const res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+    });
+    if (res.status === 401) {
+      accessToken = null;
+      throw new Error('not-connected');
+    }
+    if (res.ok) return res.json() as Promise<T>;
+    const body = await res.json().catch(() => null);
+    if (attempt < RETRIES && isRetriableGmailError(res.status, body)) {
+      await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 250));
+      continue;
+    }
+    throw new Error(`gmail-${res.status}`);
   }
-  if (!res.ok) throw new Error(`gmail-${res.status}`);
-  return res.json() as Promise<T>;
 }
 
 export async function fetchInbox(): Promise<Email[]> {
