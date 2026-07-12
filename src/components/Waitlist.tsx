@@ -56,7 +56,12 @@ export default function Waitlist({ onHaveAccess }: Props) {
       </h1>
       <p className="connect-tag">Built for busy people.</p>
       {state === 'done' ? (
-        <p className="waitlist-done">you're on the list. we'll email you when your seat opens.</p>
+        <>
+          <p className="waitlist-done">you're on the list. we'll email you when your seat opens.</p>
+          <button className="send connect-cta" onClick={onHaveAccess}>
+            connect with Google
+          </button>
+        </>
       ) : (
         <>
           <input
@@ -95,9 +100,11 @@ export default function Waitlist({ onHaveAccess }: Props) {
           )}
         </>
       )}
-      <button className="waitlist-access" onClick={onHaveAccess}>
-        already have access? sign in
-      </button>
+      {state !== 'done' && (
+        <button className="waitlist-access" onClick={onHaveAccess}>
+          already have access? sign in
+        </button>
+      )}
     </div>
   );
 }
