@@ -5,7 +5,8 @@ interface Props {
   onHaveAccess: () => void;
 }
 
-const WAITLIST_ENDPOINT = 'https://formsubmit.co/ajax/varun@teyra.app';
+// formsubmit.co alias for varun@teyra.app — keeps the raw address out of the bundle.
+const WAITLIST_ENDPOINT = 'https://formsubmit.co/ajax/f9813b66e3f163ee34cce515e4e66acf';
 
 // The very front: nobody has access yet, so the hero is a waitlist.
 export default function Waitlist({ onHaveAccess }: Props) {
