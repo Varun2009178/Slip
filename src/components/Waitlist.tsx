@@ -45,7 +45,7 @@ export default function Waitlist({ onHaveAccess }: Props) {
           <input
             className="field"
             type="email"
-            placeholder="you@company.com"
+            placeholder="enter email"
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
