@@ -16,10 +16,18 @@ function alreadyJoined(): boolean {
   }
 }
 
+const EXCITED_OPTIONS = [
+  'yes',
+  'yes + 1',
+  'yes + 2',
+  'bro i genuinely cannot wait another day i need this app and will use it every single day',
+] as const;
+type Excited = (typeof EXCITED_OPTIONS)[number];
+
 // The hero: nobody has access yet, so the very front is a waitlist.
 export default function Waitlist({ onHaveAccess }: Props) {
   const [email, setEmail] = useState('');
-  const [excited, setExcited] = useState<'yes' | 'yes + 1' | null>(null);
+  const [excited, setExcited] = useState<Excited | null>(null);
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>(() =>
     alreadyJoined() ? 'done' : 'idle',
   );
@@ -80,18 +88,15 @@ export default function Waitlist({ onHaveAccess }: Props) {
             </div>
             <p className="waitlist-q">are you excited to try the best email in the world?</p>
             <div className="waitlist-opts">
-              <button
-                className={excited === 'yes' ? 'opt active' : 'opt'}
-                onClick={() => setExcited('yes')}
-              >
-                yes
-              </button>
-              <button
-                className={excited === 'yes + 1' ? 'opt active' : 'opt'}
-                onClick={() => setExcited('yes + 1')}
-              >
-                yes + 1
-              </button>
+              {EXCITED_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  className={excited === option ? 'opt active' : 'opt'}
+                  onClick={() => setExcited(option)}
+                >
+                  {option}
+                </button>
+              ))}
             </div>
             {state === 'error' && (
               <p className="ai-error">
