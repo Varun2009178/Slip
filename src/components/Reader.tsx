@@ -21,11 +21,11 @@ export default function Reader({ email, earlier, fading, doneLabel, onBack, onDo
     <div>
       <header className="reader-nav">
         <button onClick={onBack}>
-          ← Inbox<kbd>Esc</kbd>
+          ← back<kbd>Esc</kbd>
         </button>
         <div>
           <button onClick={onReply}>
-            Reply<kbd>R</kbd>
+            reply<kbd>R</kbd>
           </button>
           {doneLabel && (
             <button onClick={onDone}>

@@ -626,7 +626,72 @@ a.nav-item { text-decoration: none; }
 .when-option kbd { margin: 0 0.3rem 0 0; }
 .when-time { color: var(--muted); font-size: 0.85rem; }
 
+/* ── Force reply promo (rainbow) ───────── */
+
+.force-promo {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 0.8rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(90deg, #ff5f6d, #ffb347, #ffd93d, #47d764, #3d5af1, #aa3bff) border-box;
+}
+.force-promo:hover {
+  background:
+    linear-gradient(var(--hover), var(--hover)) padding-box,
+    linear-gradient(90deg, #ff5f6d, #ffb347, #ffd93d, #47d764, #3d5af1, #aa3bff) border-box;
+}
+.force-promo-title {
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(90deg, #ff5f6d, #ffb347, #47d764, #3d5af1, #aa3bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.force-promo-copy {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.force-promo-go {
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 /* ── Force reply mode ──────────────────── */
+
+.force-bar { height: 3px; background: var(--line); }
+.force-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff5f6d, #ffb347, #ffd93d, #47d764, #3d5af1, #aa3bff);
+  transition: width 0.35s ease;
+}
+.force-body {
+  max-height: 26vh;
+  overflow-y: auto;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  border-left: 2px solid var(--line);
+  padding-left: 0.9rem;
+  margin-bottom: 0.7rem;
+}
+.force-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+  margin: 0.9rem 0 0;
+}
+.force-actions-left { display: flex; gap: 0.4rem; }
 
 .force {
   position: fixed;
@@ -634,8 +699,9 @@ a.nav-item { text-decoration: none; }
   z-index: 45;
   background: var(--bg);
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
 }
+.force > .force-card:only-child { grid-row: 1 / -1; }
 .force-top {
   display: flex;
   align-items: center;

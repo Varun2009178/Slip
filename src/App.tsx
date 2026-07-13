@@ -180,7 +180,7 @@ export default function App() {
       await wakeDueSnoozes();
       setEmails(await fetchInbox());
     } catch {
-      showToast({ text: "Couldn't load inbox" });
+      showToast({ text: "couldn't load inbox" });
     } finally {
       setLoading(false);
     }
@@ -254,7 +254,7 @@ export default function App() {
         .then(setSentEmails)
         .catch(() => {
           setSentEmails([]);
-          showToast({ text: "Couldn't load sent mail" });
+          showToast({ text: "couldn't load sent mail" });
         })
         .finally(() => setLoading(false));
     } else if (target === 'drafts') {
@@ -264,7 +264,7 @@ export default function App() {
         .then(setDrafts)
         .catch(() => {
           setDrafts([]);
-          showToast({ text: "Couldn't load drafts" });
+          showToast({ text: "couldn't load drafts" });
         })
         .finally(() => setLoading(false));
     }
@@ -297,7 +297,7 @@ export default function App() {
     unarchive(email.id).catch(() => {
       setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
       addDoneId(email.id);
-      showToast({ text: "Couldn't undo" });
+      showToast({ text: "couldn't undo" });
     });
   }
 
@@ -314,11 +314,11 @@ export default function App() {
         .then(() => {
           addDoneId(id);
           setDoneEmails((list) => (list ? [email, ...list] : list));
-          showToast({ text: 'Done', actionLabel: 'Undo', onAction: () => undoDone(email) });
+          showToast({ text: 'done', actionLabel: 'undo', onAction: () => undoDone(email) });
         })
         .catch(() => {
           setEmails((list) => (list ? [...list, email] : [email]));
-          showToast({ text: "Couldn't archive" });
+          showToast({ text: "couldn't archive" });
         });
     }, FADE_MS);
   }
@@ -336,11 +336,11 @@ export default function App() {
         .then(() => {
           removeDoneId(id);
           setEmails((list) => (list ? [...list, email] : [email]));
-          showToast({ text: 'Back in inbox' });
+          showToast({ text: 'back in inbox' });
         })
         .catch(() => {
           setDoneEmails((list) => (list ? [email, ...list] : [email]));
-          showToast({ text: "Couldn't restore" });
+          showToast({ text: "couldn't restore" });
         });
     }, FADE_MS);
   }
@@ -354,10 +354,10 @@ export default function App() {
       setFadingIds((f) => f.filter((x) => x !== draftId));
       setDrafts((list) => list?.filter((d) => d.draftId !== draftId) ?? null);
       deleteDraft(draftId)
-        .then(() => showToast({ text: 'Draft deleted' }))
+        .then(() => showToast({ text: 'draft deleted' }))
         .catch(() => {
           setDrafts((list) => (list ? [draft, ...list] : [draft]));
-          showToast({ text: "Couldn't delete draft" });
+          showToast({ text: "couldn't delete draft" });
         });
     }, FADE_MS);
   }
@@ -373,11 +373,11 @@ export default function App() {
       archive(email.id)
         .then(() => {
           addSnooze(email.id, when.getTime());
-          showToast({ text: `Snoozed until ${formatWhen(when)}` });
+          showToast({ text: `snoozed until ${formatWhen(when)}` });
         })
         .catch(() => {
           setEmails((list) => (list ? [...list, email] : [email]));
-          showToast({ text: "Couldn't snooze" });
+          showToast({ text: "couldn't snooze" });
         });
     }, FADE_MS);
   }
@@ -395,11 +395,11 @@ export default function App() {
         .then(() => {
           removeSnooze(id);
           setEmails((list) => (list ? [...list, email] : [email]));
-          showToast({ text: 'Back in inbox' });
+          showToast({ text: 'back in inbox' });
         })
         .catch(() => {
           setSnoozedEmails((list) => (list ? [email, ...list] : [email]));
-          showToast({ text: "Couldn't unsnooze" });
+          showToast({ text: "couldn't unsnooze" });
         });
     }, FADE_MS);
   }
@@ -413,6 +413,20 @@ export default function App() {
       threadId: email.threadId,
       inReplyTo: email.rfcMessageId || undefined,
     });
+    setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+    archive(email.id)
+      .then(() => addDoneId(email.id))
+      .catch(() => undefined);
+  }
+
+  function forceSnooze(email: Email, when: Date) {
+    setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+    archive(email.id)
+      .then(() => addSnooze(email.id, when.getTime()))
+      .catch(() => undefined);
+  }
+
+  function forceArchive(email: Email) {
     setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
     archive(email.id)
       .then(() => addDoneId(email.id))
@@ -439,7 +453,7 @@ export default function App() {
     }
     setView({ name: 'list' });
     if (section === 'sent') navigate('sent'); // refetch so the new mail shows
-    showToast({ text: 'Sent' });
+    showToast({ text: 'sent' });
   }
 
   async function handleSaveDraft(mail: OutgoingMail, draftId?: string) {
@@ -447,7 +461,7 @@ export default function App() {
     setDrafts(null); // stale — refetched next time the section opens
     if (section === 'drafts') navigate('drafts');
     setView({ name: 'list' });
-    showToast({ text: 'Saved to drafts' });
+    showToast({ text: 'saved to drafts' });
   }
 
   // ⌘K toggles the palette from anywhere except the composer (where a
@@ -593,52 +607,52 @@ export default function App() {
   const readingEmail = view.name === 'reading' ? activeList.find((m) => m.id === view.id) : undefined;
 
   const dismissLabel =
-    section === 'inbox' ? 'Mark done' : section === 'read' ? 'Restore to inbox' : 'Delete draft';
+    section === 'inbox' ? 'mark done' : section === 'read' ? 'restore to inbox' : 'delete draft';
   const commands: Command[] = [];
   if (readingEmail) {
     commands.push(
-      { id: 'reply', label: 'Reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: readingEmail }) },
+      { id: 'reply', label: 'reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: readingEmail }) },
       { id: 'dismiss', label: dismissLabel, keys: 'E', run: () => dismiss(readingEmail.id) },
-      { id: 'back', label: 'Back to list', keys: 'Esc', run: () => setView({ name: 'list' }) },
+      { id: 'back', label: 'back to list', keys: 'Esc', run: () => setView({ name: 'list' }) },
     );
   } else if (view.name === 'list' && selectedId) {
     commands.push(
-      { id: 'open', label: section === 'drafts' ? 'Open draft' : 'Open email', keys: '↵', run: () => openEmail(selectedId) },
+      { id: 'open', label: section === 'drafts' ? 'open draft' : 'open email', keys: '↵', run: () => openEmail(selectedId) },
       { id: 'dismiss', label: dismissLabel, keys: 'E', run: () => dismiss(selectedId) },
     );
     if (section === 'inbox') {
       const email = activeList.find((m) => m.id === selectedId);
       if (email) {
         commands.push(
-          { id: 'reply', label: 'Reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: email }) },
-          { id: 'snooze', label: 'Snooze…', keys: 'S', run: () => setSnoozeTarget(email) },
+          { id: 'reply', label: 'reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: email }) },
+          { id: 'snooze', label: 'snooze…', keys: 'S', run: () => setSnoozeTarget(email) },
         );
       }
     }
   }
   if (section === 'inbox' && view.name !== 'force' && inbox.length > 0) {
-    commands.push({ id: 'force', label: 'Force reply mode', keys: 'Z', run: () => setView({ name: 'force' }) });
+    commands.push({ id: 'force', label: 'force reply mode', keys: 'Z', run: () => setView({ name: 'force' }) });
   }
-  commands.push({ id: 'compose', label: 'Compose', keys: 'C', run: () => setView({ name: 'composing' }) });
-  if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'Go to Inbox', run: () => navigate('inbox') });
-  if (section !== 'read') commands.push({ id: 'go-read', label: 'Go to Read', run: () => navigate('read') });
-  if (section !== 'snoozed') commands.push({ id: 'go-snoozed', label: 'Go to Snoozed', run: () => navigate('snoozed') });
-  if (section !== 'sent') commands.push({ id: 'go-sent', label: 'Go to Sent', run: () => navigate('sent') });
-  if (section !== 'drafts') commands.push({ id: 'go-drafts', label: 'Go to Drafts', run: () => navigate('drafts') });
+  commands.push({ id: 'compose', label: 'compose', keys: 'C', run: () => setView({ name: 'composing' }) });
+  if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'go to inbox', run: () => navigate('inbox') });
+  if (section !== 'read') commands.push({ id: 'go-read', label: 'go to read', run: () => navigate('read') });
+  if (section !== 'snoozed') commands.push({ id: 'go-snoozed', label: 'go to snoozed', run: () => navigate('snoozed') });
+  if (section !== 'sent') commands.push({ id: 'go-sent', label: 'go to sent', run: () => navigate('sent') });
+  if (section !== 'drafts') commands.push({ id: 'go-drafts', label: 'go to drafts', run: () => navigate('drafts') });
   if (view.name !== 'home') {
-    commands.push({ id: 'go-home', label: 'Go to Home', run: () => setView({ name: 'home' }) });
+    commands.push({ id: 'go-home', label: 'go to home', run: () => setView({ name: 'home' }) });
   }
   commands.push(
-    { id: 'refresh', label: 'Refresh inbox', run: refresh },
-    { id: 'feature', label: 'Request a feature', run: requestFeature },
+    { id: 'refresh', label: 'refresh inbox', run: refresh },
+    { id: 'feature', label: 'request a feature', run: requestFeature },
     {
       id: 'start',
-      label: start === 'keys' ? 'Start in inbox after connecting' : 'Start with the key screen',
+      label: start === 'keys' ? 'start in inbox after connecting' : 'start with the key screen',
       run: toggleStart,
     },
     {
       id: 'theme',
-      label: theme === 'paper' ? 'Switch to plain theme' : 'Switch to paper theme',
+      label: theme === 'paper' ? 'switch to plain theme' : 'switch to paper theme',
       run: () => setTheme((t) => (t === 'paper' ? 'default' : 'paper')),
     },
   );
@@ -685,6 +699,7 @@ export default function App() {
             onSelect={setSelectedId}
             onRefresh={refresh}
             onOpenPalette={() => setPaletteOpen(true)}
+            onForceReply={() => setView({ name: 'force' })}
           />
         )}
         {readingEmail && (
@@ -696,10 +711,10 @@ export default function App() {
               section === 'sent'
                 ? undefined
                 : section === 'read'
-                  ? 'Restore'
+                  ? 'restore'
                   : section === 'snoozed'
-                    ? 'Unsnooze'
-                    : 'Done'
+                    ? 'unsnooze'
+                    : 'done'
             }
             onBack={() => setView({ name: 'list' })}
             onDone={() => dismiss(readingEmail.id)}
@@ -718,11 +733,17 @@ export default function App() {
         />
       )}
       {view.name === 'force' && (
-        <ForceReply queue={inbox} onReply={forceReplySend} onExit={() => setView({ name: 'list' })} />
+        <ForceReply
+          queue={inbox}
+          onReply={forceReplySend}
+          onSnooze={forceSnooze}
+          onArchive={forceArchive}
+          onExit={() => setView({ name: 'list' })}
+        />
       )}
       {snoozeTarget && (
         <WhenPicker
-          title="Snooze until…"
+          title="snooze until…"
           options={snoozePresets(new Date())}
           onPick={(when) => snoozeEmail(snoozeTarget, when)}
           onClose={() => setSnoozeTarget(null)}

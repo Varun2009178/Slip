@@ -11,19 +11,19 @@ interface Props {
 // The keyboard-first landing screen: no mail, just the keys that take you places.
 export default function Home({ onNavigate, onCompose, onOpenPalette, onRequestFeature, onForceReply }: Props) {
   const cards = [
-    { k: 'I', label: 'Inbox', run: () => onNavigate('inbox') },
-    { k: 'C', label: 'Compose', run: onCompose },
-    { k: 'D', label: 'Drafts', run: () => onNavigate('drafts') },
-    { k: 'R', label: 'Read', run: () => onNavigate('read') },
-    { k: 'S', label: 'Sent', run: () => onNavigate('sent') },
-    { k: 'Z', label: 'Force reply', run: onForceReply },
-    { k: 'F', label: 'Request a feature', run: onRequestFeature },
-    { k: '⌘K', label: 'Anything', run: onOpenPalette },
+    { k: 'I', label: 'inbox', run: () => onNavigate('inbox') },
+    { k: 'C', label: 'compose', run: onCompose },
+    { k: 'D', label: 'drafts', run: () => onNavigate('drafts') },
+    { k: 'R', label: 'read', run: () => onNavigate('read') },
+    { k: 'S', label: 'sent', run: () => onNavigate('sent') },
+    { k: 'Z', label: 'force reply', run: onForceReply },
+    { k: 'F', label: 'request a feature', run: onRequestFeature },
+    { k: '⌘K', label: 'anything', run: onOpenPalette },
   ];
   return (
     <div className="home">
       <div className="home-inner">
-        <p className="home-hint">Press a key.</p>
+        <p className="home-hint">press a key.</p>
         <div className="home-grid">
           {cards.map((c) => (
             <button key={c.k} className="home-card" onClick={c.run}>

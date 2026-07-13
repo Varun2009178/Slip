@@ -87,7 +87,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue;
       if (total + file.size > MAX_TOTAL_BYTES) {
-        setError('Images too large — keep the total under 4 MB');
+        setError('images too large. keep the total under 4 MB');
         break;
       }
       total += file.size;
@@ -106,11 +106,11 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     if (busy) return;
     const mail = currentMail();
     if (!mail.to) {
-      setError('Add a recipient');
+      setError('add a recipient');
       return;
     }
     if (!mail.body && attachments.length === 0) {
-      setError('Write something first');
+      setError('write something first');
       return;
     }
     setBusy('send');
@@ -118,7 +118,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     try {
       await onSend(mail, draft?.draftId);
     } catch {
-      setError("Couldn't send — try again");
+      setError("couldn't send. try again");
       setBusy(null);
     }
   }
@@ -127,7 +127,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     if (busy) return;
     const mail = currentMail();
     if (!mail.to && !mail.subject.trim() && !mail.body && attachments.length === 0) {
-      setError('Nothing to save');
+      setError('nothing to save');
       return;
     }
     setBusy('save');
@@ -135,7 +135,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     try {
       await onSaveDraft(mail, draft?.draftId);
     } catch {
-      setError("Couldn't save — try again");
+      setError("couldn't save. try again");
       setBusy(null);
     }
   }
@@ -156,7 +156,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
     <div className="compose-overlay">
       <div className="compose-card" onKeyDown={handleKeyDown}>
         <header className="compose-head">
-          {replyTo ? 'Reply' : draft ? 'Draft' : 'New message'}
+          {replyTo ? 'reply' : draft ? 'draft' : 'new message'}
           <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
             ×
           </button>
@@ -167,7 +167,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
           <input
             ref={toRef}
             className="row-input"
-            placeholder="Add recipient"
+            placeholder="add recipient"
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
@@ -175,7 +175,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
         <div className="compose-row">
           <input
             className="row-input subject"
-            placeholder="Subject"
+            placeholder="subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
           />
@@ -203,7 +203,7 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
               </span>
             ))}
             {draft && draft.attachmentNames.length > 0 && attachments.length === 0 && (
-              <span className="chip chip-note" title="Images from the saved draft aren't carried over — re-add them">
+              <span className="chip chip-note" title="images from the saved draft aren't carried over. re-add them">
                 re-add: {draft.attachmentNames.join(', ')}
               </span>
             )}
@@ -235,10 +235,10 @@ export default function Composer({ replyTo, draft, prefill, onClose, onSend, onS
             <IconClip />
           </button>
           {error && <span className="ai-error">{error}</span>}
-          {busy === 'save' && <span className="compose-status">Saving…</span>}
+          {busy === 'save' && <span className="compose-status">saving…</span>}
           <span className="spacer" />
           <button className="send" onClick={trySend} disabled={!!busy}>
-            {busy === 'send' ? 'Sending…' : 'Send'}
+            {busy === 'send' ? 'sending…' : 'send'}
           </button>
         </footer>
       </div>

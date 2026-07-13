@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Email } from '../lib/types';
+import { snoozePresets } from '../lib/when';
+import EmailBody from './EmailBody';
+import WhenPicker from './WhenPicker';
 
 interface Props {
   queue: Email[];
   onReply: (email: Email, body: string) => Promise<void>;
+  onSnooze: (email: Email, when: Date) => void;
+  onArchive: (email: Email) => void;
   onExit: () => void;
 }
 
-// Force reply: one email at a time — sender, subject, reply box, nothing
-// else. ⌘↵ sends and auto-advances. TikTok, but for clearing your inbox.
-export default function ForceReply({ queue, onReply, onExit }: Props) {
+// Force reply: one email at a time — the message, a reply box, and four
+// moves: send, snooze, mark done, skip. TikTok, but for clearing your inbox.
+export default function ForceReply({ queue, onReply, onSnooze, onArchive, onExit }: Props) {
   const [emails] = useState(queue); // snapshot at entry; the inbox mutates behind us
   const [index, setIndex] = useState(0);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(0);
+  const [stats, setStats] = useState({ sent: 0, snoozed: 0, archived: 0 });
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(Date.now());
@@ -37,6 +43,7 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (picking) return; // the when-picker owns the keyboard
       if (e.key === 'Escape') {
         e.stopPropagation();
         onExit();
@@ -47,7 +54,7 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
     }
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [done, onExit]);
+  }, [done, picking, onExit]);
 
   function advance() {
     setText('');
@@ -62,12 +69,42 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
     setError(null);
     try {
       await onReply(email, body);
-      setSent((s) => s + 1);
+      setStats((s) => ({ ...s, sent: s.sent + 1 }));
       advance();
     } catch {
-      setError("couldn't send — try again");
+      setError("couldn't send. try again");
     } finally {
       setSending(false);
+    }
+  }
+
+  function snooze(when: Date) {
+    setPicking(false);
+    if (!email) return;
+    onSnooze(email, when);
+    setStats((s) => ({ ...s, snoozed: s.snoozed + 1 }));
+    advance();
+  }
+
+  function archive() {
+    if (!email) return;
+    onArchive(email);
+    setStats((s) => ({ ...s, archived: s.archived + 1 }));
+    advance();
+  }
+
+  function onReplyKeys(e: React.KeyboardEvent) {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      send();
+    } else if (k === 'e') {
+      e.preventDefault();
+      archive();
+    } else if (k === 's') {
+      e.preventDefault();
+      setPicking(true);
     }
   }
 
@@ -86,14 +123,20 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
   }
 
   if (done) {
+    const parts = [
+      `${stats.sent} ${stats.sent === 1 ? 'reply' : 'replies'}`,
+      stats.snoozed > 0 && `${stats.snoozed} snoozed`,
+      stats.archived > 0 && `${stats.archived} done`,
+    ].filter(Boolean);
+    const skipped = emails.length - stats.sent - stats.snoozed - stats.archived;
     return (
       <div className="force">
         <div className="force-card force-end">
           <h1>
-            {sent} {sent === 1 ? 'reply' : 'replies'} in {finishedRef.current || elapsed}s.
+            {parts.join(' · ')} in {finishedRef.current || elapsed}s.
           </h1>
           <p className="force-stat">
-            {sent === emails.length ? 'every single one. machine.' : `${emails.length - sent} skipped — they can wait.`}
+            {skipped === 0 ? 'every single one. machine.' : `${skipped} skipped. they can wait.`}
           </p>
           <button className="send" onClick={onExit}>
             back to inbox <kbd>↵</kbd>
@@ -105,6 +148,9 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
 
   return (
     <div className="force">
+      <div className="force-bar" aria-hidden="true">
+        <div className="force-bar-fill" style={{ width: `${(index / emails.length) * 100}%` }} />
+      </div>
       <div className="force-top">
         <span className="force-progress">
           {index + 1} / {emails.length}
@@ -117,6 +163,9 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
       <div className="force-card">
         <p className="force-from">{email.from}</p>
         <h1 className="force-subject">{email.subject}</h1>
+        <div className="force-body">
+          <EmailBody email={email} />
+        </div>
         <textarea
           key={email.id} // fresh, autofocused box per email
           className="force-reply"
@@ -124,23 +173,38 @@ export default function ForceReply({ queue, onReply, onExit }: Props) {
           autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-              e.preventDefault();
-              send();
-            }
-          }}
+          onKeyDown={onReplyKeys}
         />
         {error && <p className="ai-error">{error}</p>}
         <div className="force-actions">
-          <button onClick={advance} disabled={sending}>
-            skip →
-          </button>
+          <div className="force-actions-left">
+            <button onClick={advance} disabled={sending}>
+              skip →
+            </button>
+            <button onClick={() => setPicking(true)} disabled={sending}>
+              snooze <kbd>⌘S</kbd>
+            </button>
+            <button onClick={archive} disabled={sending}>
+              mark done <kbd>⌘E</kbd>
+            </button>
+          </div>
           <button className="send" onClick={send} disabled={sending || !text.trim()}>
             {sending ? 'sending…' : 'send'} <kbd>⌘↵</kbd>
           </button>
         </div>
+        <p className="force-hint">
+          reply, snooze, or mark it done. the bar up top is your progress. inbox zero is minutes
+          away.
+        </p>
       </div>
+      {picking && (
+        <WhenPicker
+          title="snooze until…"
+          options={snoozePresets(new Date())}
+          onPick={snooze}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </div>
   );
 }

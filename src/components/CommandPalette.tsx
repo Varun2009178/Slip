@@ -48,7 +48,7 @@ export default function CommandPalette({ commands, onClose }: Props) {
       <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
         <input
           className="palette-input"
-          placeholder="Type a command…"
+          placeholder="type a command…"
           autoFocus
           value={query}
           onChange={(e) => {
@@ -58,7 +58,7 @@ export default function CommandPalette({ commands, onClose }: Props) {
           onKeyDown={onKeyDown}
         />
         <div className="palette-list" ref={listRef}>
-          {matches.length === 0 && <div className="palette-empty">No matching command</div>}
+          {matches.length === 0 && <div className="palette-empty">no matching command</div>}
           {matches.map((cmd, i) => (
             <button
               key={cmd.id}

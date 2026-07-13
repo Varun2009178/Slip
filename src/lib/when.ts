@@ -22,10 +22,10 @@ function nextDow(base: Date, dow: number, hour: number): Date {
 
 export function snoozePresets(now: Date): WhenOption[] {
   return [
-    { label: 'Later today', when: new Date(now.getTime() + 3 * 3600_000) },
-    { label: 'Tomorrow', when: at(now, 1, 8) },
-    { label: 'This weekend', when: nextDow(now, 6, 8) },
-    { label: 'Next week', when: nextDow(now, 1, 8) },
+    { label: 'later today', when: new Date(now.getTime() + 3 * 3600_000) },
+    { label: 'tomorrow', when: at(now, 1, 8) },
+    { label: 'this weekend', when: nextDow(now, 6, 8) },
+    { label: 'next week', when: nextDow(now, 1, 8) },
   ];
 }
 
