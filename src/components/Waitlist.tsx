@@ -64,12 +64,10 @@ export default function Waitlist({ onHaveAccess }: Props) {
         </p>
 
         {state === 'done' ? (
-          <>
-            <p className="waitlist-done">you're on the list. we'll email you when your seat opens.</p>
-            <button className="send connect-cta" onClick={onHaveAccess}>
-              connect with Google
-            </button>
-          </>
+          // already on the list: same hero + video, the form just becomes sign-in
+          <button className="send connect-cta" onClick={onHaveAccess}>
+            connect with Google
+          </button>
         ) : (
           <>
             <div className="hero-form">
