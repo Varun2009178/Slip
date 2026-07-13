@@ -29,6 +29,7 @@ import CommandPalette from './components/CommandPalette';
 import Home from './components/Home';
 import type { Prefill } from './components/Composer';
 import type { Command } from './lib/commands';
+import { SlipMark } from './components/icons';
 import Inbox, { type Section } from './components/Inbox';
 import Reader from './components/Reader';
 import Composer from './components/Composer';
@@ -439,20 +440,35 @@ export default function App() {
   }
 
   if (emails === null) {
+    const claimAccess = () => {
+      try {
+        localStorage.setItem(ACCESS_KEY, '1');
+      } catch {
+        // choice just won't persist
+      }
+      setGate('connect');
+    };
     return (
       <div className="front">
-        <div className="app">
+        <header className="front-nav">
+          <a className="front-brand" href="/">
+            <SlipMark />
+            slip
+          </a>
+          <nav className="front-links">
+            <a href="#tour">features</a>
+            <a href="#roadmap">what’s coming</a>
+            <a href="https://github.com/Varun2009178/Slip" target="_blank" rel="noreferrer">
+              github
+            </a>
+            <button className="front-signin" onClick={claimAccess}>
+              sign in
+            </button>
+          </nav>
+        </header>
+        <div className={gate === 'waitlist' ? 'app hero' : 'app'}>
           {gate === 'waitlist' ? (
-            <Waitlist
-              onHaveAccess={() => {
-                try {
-                  localStorage.setItem(ACCESS_KEY, '1');
-                } catch {
-                  // choice just won't persist
-                }
-                setGate('connect');
-              }}
-            />
+            <Waitlist onHaveAccess={claimAccess} />
           ) : (
             <Connect error={connectError} onConnect={handleConnect} />
           )}

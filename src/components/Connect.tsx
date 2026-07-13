@@ -13,9 +13,9 @@ export const DENIED_ERROR = "sorry, you aren't cool enough to access slip yet. d
 // drawn after the slip and filled, so the slip stays hidden "inside" until
 // the animation lifts it above the pocket's top edge. Also played by the
 // sign-in transition overlay in App.
-export function SlipAnimation() {
+export function SlipAnimation({ size = 88 }: { size?: number }) {
   return (
-    <svg className="slip-logo" width="88" height="88" viewBox="0 0 96 96" aria-hidden="true">
+    <svg className="slip-logo" width={size} height={size} viewBox="0 0 96 96" aria-hidden="true">
       <g className="slip-paper">
         <rect x="30" y="18" width="36" height="30" rx="3" fill="#ffffff" stroke="#1d1c1a" strokeWidth="2.5" />
         <line x1="37" y1="27" x2="59" y2="27" stroke="#c9c8c5" strokeWidth="2" strokeLinecap="round" />
