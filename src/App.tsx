@@ -19,12 +19,16 @@ import {
   type Profile,
 } from './lib/gmail';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
+import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/snooze';
+import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
 import Waitlist from './components/Waitlist';
+import WhenPicker from './components/WhenPicker';
+import ForceReply from './components/ForceReply';
 import CommandPalette from './components/CommandPalette';
 import Home from './components/Home';
 import type { Prefill } from './components/Composer';
@@ -39,6 +43,7 @@ type View =
   | { name: 'home' }
   | { name: 'list' }
   | { name: 'reading'; id: string }
+  | { name: 'force' }
   | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 
 type Theme = 'default' | 'paper';
@@ -105,6 +110,8 @@ export default function App() {
   const [emails, setEmails] = useState<Email[] | null>(null);
   const [doneEmails, setDoneEmails] = useState<Email[] | null>(null);
   const [sentEmails, setSentEmails] = useState<Email[] | null>(null);
+  const [snoozedEmails, setSnoozedEmails] = useState<Email[] | null>(null);
+  const [snoozeTarget, setSnoozeTarget] = useState<Email | null>(null);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,10 +144,12 @@ export default function App() {
         ? (doneEmails ?? [])
         : section === 'sent'
           ? (sentEmails ?? [])
-          : section === 'drafts'
-            ? (drafts ?? []).map(draftRow)
-            : inbox,
-    [section, doneEmails, sentEmails, drafts, inbox],
+          : section === 'snoozed'
+            ? (snoozedEmails ?? [])
+            : section === 'drafts'
+              ? (drafts ?? []).map(draftRow)
+              : inbox,
+    [section, doneEmails, sentEmails, snoozedEmails, drafts, inbox],
   );
 
   useEffect(() => {
@@ -154,9 +163,21 @@ export default function App() {
     window.setTimeout(() => setToast((t) => (t === toast ? null : t)), TOAST_MS);
   }
 
+  // Snoozes past their wake time go back into the inbox before we fetch it.
+  async function wakeDueSnoozes() {
+    await Promise.all(
+      dueSnoozeIds().map((id) =>
+        unarchive(id)
+          .then(() => removeSnooze(id))
+          .catch(() => undefined),
+      ),
+    );
+  }
+
   async function refresh() {
     setLoading(true);
     try {
+      await wakeDueSnoozes();
       setEmails(await fetchInbox());
     } catch {
       showToast({ text: "Couldn't load inbox" });
@@ -170,6 +191,7 @@ export default function App() {
     try {
       await connect();
       fetchProfile().then(setProfile).catch(() => undefined);
+      await wakeDueSnoozes().catch(() => undefined);
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
@@ -216,6 +238,14 @@ export default function App() {
       Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)))
         .then((loaded) => setDoneEmails(loaded.filter((m): m is Email => m !== null)))
         .catch(() => setDoneEmails([]))
+        .finally(() => setLoading(false));
+    } else if (target === 'snoozed') {
+      setSnoozedEmails(null);
+      setLoading(true);
+      const ids = pendingSnoozeIds();
+      Promise.all(ids.map((id) => fetchMessage(id).catch(() => null)))
+        .then((loaded) => setSnoozedEmails(loaded.filter((m): m is Email => m !== null)))
+        .catch(() => setSnoozedEmails([]))
         .finally(() => setLoading(false));
     } else if (target === 'sent') {
       setSentEmails(null);
@@ -332,6 +362,63 @@ export default function App() {
     }, FADE_MS);
   }
 
+  function snoozeEmail(email: Email, when: Date) {
+    setSnoozeTarget(null);
+    if (fadingIds.includes(email.id)) return;
+    setFadingIds((f) => [...f, email.id]);
+    window.setTimeout(() => {
+      setFadingIds((f) => f.filter((x) => x !== email.id));
+      setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+      setView((v) => (v.name === 'reading' && v.id === email.id ? { name: 'list' } : v));
+      archive(email.id)
+        .then(() => {
+          addSnooze(email.id, when.getTime());
+          showToast({ text: `Snoozed until ${formatWhen(when)}` });
+        })
+        .catch(() => {
+          setEmails((list) => (list ? [...list, email] : [email]));
+          showToast({ text: "Couldn't snooze" });
+        });
+    }, FADE_MS);
+  }
+
+  function unsnooze(id: string) {
+    if (fadingIds.includes(id)) return;
+    const email = snoozedEmails?.find((m) => m.id === id);
+    if (!email) return;
+    setFadingIds((f) => [...f, id]);
+    window.setTimeout(() => {
+      setFadingIds((f) => f.filter((x) => x !== id));
+      setSnoozedEmails((list) => list?.filter((m) => m.id !== id) ?? null);
+      setView((v) => (v.name === 'reading' && v.id === id ? { name: 'list' } : v));
+      unarchive(id)
+        .then(() => {
+          removeSnooze(id);
+          setEmails((list) => (list ? [...list, email] : [email]));
+          showToast({ text: 'Back in inbox' });
+        })
+        .catch(() => {
+          setSnoozedEmails((list) => (list ? [email, ...list] : [email]));
+          showToast({ text: "Couldn't unsnooze" });
+        });
+    }, FADE_MS);
+  }
+
+  // Force reply: send, archive, drop from the inbox — the mode auto-advances.
+  async function forceReplySend(email: Email, body: string) {
+    await sendEmail({
+      to: email.fromEmail,
+      subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+      body,
+      threadId: email.threadId,
+      inReplyTo: email.rfcMessageId || undefined,
+    });
+    setEmails((list) => list?.filter((m) => m.id !== email.id) ?? null);
+    archive(email.id)
+      .then(() => addDoneId(email.id))
+      .catch(() => undefined);
+  }
+
   // Sent mail has no dismiss action — it lives in Gmail's Sent label forever.
   const dismiss =
     section === 'read'
@@ -340,7 +427,9 @@ export default function App() {
         ? removeDraft
         : section === 'sent'
           ? () => undefined
-          : markDone;
+          : section === 'snoozed'
+            ? unsnooze
+            : markDone;
 
   async function handleSend(mail: OutgoingMail, draftId?: string) {
     await sendEmail(mail);
@@ -390,6 +479,10 @@ export default function App() {
         } else if (k === 'd') navigate('drafts');
         else if (k === 'r') navigate('read');
         else if (k === 's') navigate('sent');
+        else if (k === 'z') {
+          e.preventDefault(); // keep the keystroke out of the autofocused reply box
+          setView({ name: 'force' });
+        }
         else if (k === 'f') {
           e.preventDefault();
           requestFeature();
@@ -409,6 +502,16 @@ export default function App() {
           openEmail(selectedId);
         } else if (e.key.toLowerCase() === 'e' && selectedId) {
           dismiss(selectedId);
+        } else if (e.key.toLowerCase() === 'r' && selectedId && section !== 'drafts') {
+          e.preventDefault(); // keep the keystroke out of the autofocused composer
+          const email = activeList.find((m) => m.id === selectedId);
+          if (email) setView({ name: 'composing', replyTo: email });
+        } else if (e.key.toLowerCase() === 's' && selectedId && section === 'inbox') {
+          const email = activeList.find((m) => m.id === selectedId);
+          if (email) setSnoozeTarget(email);
+        } else if (e.key.toLowerCase() === 'z' && section === 'inbox') {
+          e.preventDefault(); // keep the keystroke out of the autofocused reply box
+          setView({ name: 'force' });
         } else if (e.key.toLowerCase() === 'c' && section !== 'read') {
           e.preventDefault(); // keep the keystroke out of the autofocused composer
           setView({ name: 'composing' });
@@ -419,7 +522,10 @@ export default function App() {
       } else if (view.name === 'reading') {
         if (e.key.toLowerCase() === 'e') dismiss(view.id);
         else if (e.key === 'Escape') setView({ name: 'list' });
-        else if (e.key.toLowerCase() === 'r') {
+        else if (e.key.toLowerCase() === 's' && section === 'inbox') {
+          const email = activeList.find((m) => m.id === view.id);
+          if (email) setSnoozeTarget(email);
+        } else if (e.key.toLowerCase() === 'r') {
           e.preventDefault();
           const email = activeList.find((m) => m.id === view.id);
           setView({ name: 'composing', replyTo: email });
@@ -500,10 +606,23 @@ export default function App() {
       { id: 'open', label: section === 'drafts' ? 'Open draft' : 'Open email', keys: '↵', run: () => openEmail(selectedId) },
       { id: 'dismiss', label: dismissLabel, keys: 'E', run: () => dismiss(selectedId) },
     );
+    if (section === 'inbox') {
+      const email = activeList.find((m) => m.id === selectedId);
+      if (email) {
+        commands.push(
+          { id: 'reply', label: 'Reply', keys: 'R', run: () => setView({ name: 'composing', replyTo: email }) },
+          { id: 'snooze', label: 'Snooze…', keys: 'S', run: () => setSnoozeTarget(email) },
+        );
+      }
+    }
+  }
+  if (section === 'inbox' && view.name !== 'force' && inbox.length > 0) {
+    commands.push({ id: 'force', label: 'Force reply mode', keys: 'Z', run: () => setView({ name: 'force' }) });
   }
   commands.push({ id: 'compose', label: 'Compose', keys: 'C', run: () => setView({ name: 'composing' }) });
   if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'Go to Inbox', run: () => navigate('inbox') });
   if (section !== 'read') commands.push({ id: 'go-read', label: 'Go to Read', run: () => navigate('read') });
+  if (section !== 'snoozed') commands.push({ id: 'go-snoozed', label: 'Go to Snoozed', run: () => navigate('snoozed') });
   if (section !== 'sent') commands.push({ id: 'go-sent', label: 'Go to Sent', run: () => navigate('sent') });
   if (section !== 'drafts') commands.push({ id: 'go-drafts', label: 'Go to Drafts', run: () => navigate('drafts') });
   if (view.name !== 'home') {
@@ -552,6 +671,7 @@ export default function App() {
             onCompose={() => setView({ name: 'composing' })}
             onOpenPalette={() => setPaletteOpen(true)}
             onRequestFeature={requestFeature}
+            onForceReply={() => setView({ name: 'force' })}
           />
         )}
         {(view.name === 'list' || view.name === 'composing') && (
@@ -572,7 +692,15 @@ export default function App() {
             email={readingEmail}
             earlier={thread}
             fading={fadingIds.includes(readingEmail.id)}
-            doneLabel={section === 'sent' ? undefined : section === 'read' ? 'Restore' : 'Done'}
+            doneLabel={
+              section === 'sent'
+                ? undefined
+                : section === 'read'
+                  ? 'Restore'
+                  : section === 'snoozed'
+                    ? 'Unsnooze'
+                    : 'Done'
+            }
             onBack={() => setView({ name: 'list' })}
             onDone={() => dismiss(readingEmail.id)}
             onReply={() => setView({ name: 'composing', replyTo: readingEmail })}
@@ -587,6 +715,17 @@ export default function App() {
           onClose={() => setView({ name: 'list' })}
           onSend={handleSend}
           onSaveDraft={handleSaveDraft}
+        />
+      )}
+      {view.name === 'force' && (
+        <ForceReply queue={inbox} onReply={forceReplySend} onExit={() => setView({ name: 'list' })} />
+      )}
+      {snoozeTarget && (
+        <WhenPicker
+          title="Snooze until…"
+          options={snoozePresets(new Date())}
+          onPick={(when) => snoozeEmail(snoozeTarget, when)}
+          onClose={() => setSnoozeTarget(null)}
         />
       )}
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}

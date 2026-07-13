@@ -71,6 +71,15 @@ export function IconTrash({ size = 16 }: IconProps) {
   );
 }
 
+export function IconClock({ size = 16 }: IconProps) {
+  return (
+    <svg {...svgProps(size)}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.8V8l2.2 1.6" />
+    </svg>
+  );
+}
+
 export function IconSent({ size = 16 }: IconProps) {
   return (
     <svg {...svgProps(size)}>

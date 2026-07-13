@@ -600,6 +600,100 @@ a.nav-item { text-decoration: none; }
 }
 .palette-empty { color: var(--muted); padding: 0.75rem; font-size: 0.9rem; }
 
+/* ── When picker (snooze) ──────────────── */
+
+.when-picker {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  width: min(24rem, 92vw);
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+}
+.when-title { font-size: 0.8rem; color: var(--muted); padding: 0.5rem 0.75rem 0.25rem; }
+.when-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  text-align: left;
+}
+.when-option.active { background: var(--hover); }
+.when-option kbd { margin: 0 0.3rem 0 0; }
+.when-time { color: var(--muted); font-size: 0.85rem; }
+
+/* ── Force reply mode ──────────────────── */
+
+.force {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--bg);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.force-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.force-progress { font-weight: 600; color: var(--text); }
+.force-timer { flex: 1; }
+.force-exit {
+  color: var(--muted);
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+}
+.force-card {
+  width: min(42rem, 92vw);
+  margin: 0 auto;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 8vh;
+}
+.force-from { color: var(--muted); margin: 0; font-size: 0.95rem; }
+.force-subject {
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.6rem;
+}
+.force-reply {
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  min-height: 9rem;
+  resize: none;
+  outline: none;
+}
+.force-reply:focus { border-color: var(--muted); }
+.force-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+}
+.force-actions .send kbd { color: inherit; border-color: rgba(255, 255, 255, 0.4); background: none; }
+.force-end { text-align: center; align-items: center; }
+.force-end h1 { font-size: 2rem; letter-spacing: -0.02em; margin: 0; }
+.force-stat { color: var(--muted); margin: 0.2rem 0 1rem; }
+
 /* ── Warm paper colorway ───────────────── */
 
 :root[data-theme='paper'] {

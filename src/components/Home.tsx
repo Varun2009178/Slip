@@ -5,16 +5,18 @@ interface Props {
   onCompose: () => void;
   onOpenPalette: () => void;
   onRequestFeature: () => void;
+  onForceReply: () => void;
 }
 
 // The keyboard-first landing screen: no mail, just the keys that take you places.
-export default function Home({ onNavigate, onCompose, onOpenPalette, onRequestFeature }: Props) {
+export default function Home({ onNavigate, onCompose, onOpenPalette, onRequestFeature, onForceReply }: Props) {
   const cards = [
     { k: 'I', label: 'Inbox', run: () => onNavigate('inbox') },
     { k: 'C', label: 'Compose', run: onCompose },
     { k: 'D', label: 'Drafts', run: () => onNavigate('drafts') },
     { k: 'R', label: 'Read', run: () => onNavigate('read') },
     { k: 'S', label: 'Sent', run: () => onNavigate('sent') },
+    { k: 'Z', label: 'Force reply', run: onForceReply },
     { k: 'F', label: 'Request a feature', run: onRequestFeature },
     { k: '⌘K', label: 'Anything', run: onOpenPalette },
   ];

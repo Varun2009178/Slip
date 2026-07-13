@@ -1,20 +1,28 @@
 import type { Email } from '../lib/types';
 import { formatDate } from '../lib/mail';
 import Avatar from './Avatar';
-import { IconCheck, IconDraft, IconInbox, IconSent } from './icons';
+import { IconCheck, IconClock, IconDraft, IconInbox, IconSent } from './icons';
 
-export type Section = 'inbox' | 'read' | 'sent' | 'drafts';
+export type Section = 'inbox' | 'read' | 'snoozed' | 'sent' | 'drafts';
 
-const TITLES: Record<Section, string> = { inbox: 'Inbox', read: 'Read', sent: 'Sent', drafts: 'Drafts' };
+const TITLES: Record<Section, string> = {
+  inbox: 'Inbox',
+  read: 'Read',
+  snoozed: 'Snoozed',
+  sent: 'Sent',
+  drafts: 'Drafts',
+};
 const ICONS: Record<Section, React.ReactNode> = {
   inbox: <IconInbox />,
   read: <IconCheck />,
+  snoozed: <IconClock />,
   sent: <IconSent />,
   drafts: <IconDraft />,
 };
 const EMPTY: Record<Section, string> = {
   inbox: 'All done.',
   read: 'Nothing here yet — press E on an email.',
+  snoozed: 'Nothing snoozed — press S on an email.',
   sent: 'Nothing sent yet — press C.',
   drafts: 'No drafts — ⌘S in the composer saves one.',
 };
@@ -98,8 +106,14 @@ export default function Inbox({
         <span><kbd>↑↓</kbd> navigate</span>
         <span><kbd>↵</kbd> open</span>
         {mode !== 'sent' && (
-          <span><kbd>E</kbd> {mode === 'inbox' ? 'done' : mode === 'read' ? 'restore' : 'delete'}</span>
+          <span>
+            <kbd>E</kbd>{' '}
+            {mode === 'inbox' ? 'done' : mode === 'read' ? 'restore' : mode === 'snoozed' ? 'unsnooze' : 'delete'}
+          </span>
         )}
+        {mode === 'inbox' && <span><kbd>R</kbd> reply</span>}
+        {mode === 'inbox' && <span><kbd>S</kbd> snooze</span>}
+        {mode === 'inbox' && <span><kbd>Z</kbd> force reply</span>}
         {mode === 'inbox' && <span><kbd>C</kbd> compose</span>}
         <span><kbd>⌘K</kbd> commands</span>
         <span><kbd>Esc</kbd> back</span>

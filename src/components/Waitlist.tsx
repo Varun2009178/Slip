@@ -60,7 +60,7 @@ export default function Waitlist({ onHaveAccess }: Props) {
       <div className="hero-copy">
         <h1 className="hero-title">email at the speed of thought.</h1>
         <p className="hero-sub">
-          slip is the most minimal email on the web, built for busy people tired of gmail.
+          slip is the most minimal email on the web, built for busy founders tired of gmail.
         </p>
 
         {state === 'done' ? (
