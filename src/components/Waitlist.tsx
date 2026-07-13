@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { SlipAnimation } from './Connect';
 
 interface Props {
   onHaveAccess: () => void;
@@ -49,17 +48,11 @@ export default function Waitlist({ onHaveAccess }: Props) {
   }
 
   return (
-    <div className="hero-grid waitlist">
+    <div className="hero-wrap waitlist">
       <div className="hero-copy">
-        <p className="hero-eyebrow">private beta · 100 seats</p>
-        <h1 className="hero-title">
-          email at the
-          <br />
-          speed of thought.
-        </h1>
+        <h1 className="hero-title">email at the speed of thought.</h1>
         <p className="hero-sub">
-          slip is the most minimal email on the web. no folders, no noise, just keys. built for
-          busy people tired of gmail.
+          slip is the most minimal email on the web, built for busy people tired of gmail.
         </p>
 
         {state === 'done' ? (
@@ -111,9 +104,7 @@ export default function Waitlist({ onHaveAccess }: Props) {
         )}
       </div>
 
-      <div className="hero-visual" aria-hidden="true">
-        <SlipAnimation size={210} />
-      </div>
+      <video className="hero-video" src="/slip_email.mp4" autoPlay muted loop playsInline />
     </div>
   );
 }

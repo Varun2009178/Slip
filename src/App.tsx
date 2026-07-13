@@ -466,16 +466,18 @@ export default function App() {
             </button>
           </nav>
         </header>
-        <div className={gate === 'waitlist' ? 'app hero' : 'app'}>
-          {gate === 'waitlist' ? (
+        {gate === 'waitlist' ? (
+          <div className="hero-page">
             <Waitlist onHaveAccess={claimAccess} />
-          ) : (
+          </div>
+        ) : (
+          <div className="app">
             <Connect error={connectError} onConnect={handleConnect} />
-          )}
-          <a className="scroll-hint" href="#tour">
-            ↓ see what’s inside
-          </a>
-        </div>
+            <a className="scroll-hint" href="#tour">
+              ↓ see what’s inside
+            </a>
+          </div>
+        )}
         <Showcase />
         <Roadmap />
       </div>
