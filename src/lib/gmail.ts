@@ -326,6 +326,12 @@ export async function fetchProfile(): Promise<Profile> {
   return { name: d.given_name ?? d.name ?? '', picture: d.picture ?? null };
 }
 
+// The user's own address, for telling replies apart from their sent mail.
+export async function fetchSelfEmail(): Promise<string> {
+  const p = await api<{ emailAddress: string }>('/profile');
+  return p.emailAddress;
+}
+
 // ── API calls ──────────────────────────────────────────────
 
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -422,8 +428,13 @@ export async function fetchMessage(id: string): Promise<Email> {
   return parseMessage(await api<GmailMessage>(`/messages/${id}?format=full`));
 }
 
-export async function sendEmail(mail: OutgoingMail): Promise<void> {
-  await api('/messages/send', {
+export interface SentRef {
+  id: string;
+  threadId: string;
+}
+
+export async function sendEmail(mail: OutgoingMail): Promise<SentRef> {
+  return api<SentRef>('/messages/send', {
     method: 'POST',
     body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
   });
