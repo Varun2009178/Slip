@@ -1226,3 +1226,30 @@ html { scroll-behavior: smooth; }
 }
 .wizard-step:hover { background: var(--hover); }
 .wizard-step.active { background: var(--active); color: var(--text); font-weight: 600; }
+
+.step-hint { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; max-width: 56ch; }
+.sheet { width: 100%; border-collapse: collapse; }
+.sheet th, .sheet td { border-bottom: 1px solid var(--hover); padding: 0; position: relative; }
+.sheet th { text-align: left; }
+.sheet-head {
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: lowercase;
+  border: 0; background: none; padding: 8px 10px; width: 100%;
+}
+.sheet-head:focus { outline: none; color: var(--text); }
+.sheet-cell { font: inherit; font-size: 14px; border: 0; background: none; padding: 9px 10px; width: 100%; }
+.sheet-cell:focus { outline: none; background: var(--hover); border-radius: 4px; }
+.sheet-cell.cell-bad { text-decoration: underline wavy #c0392b; text-underline-offset: 3px; }
+.sheet-add { width: 32px; }
+.sheet-x, .sheet-plus {
+  border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit;
+  padding: 4px 8px; border-radius: 4px; opacity: 0;
+}
+.sheet-plus { opacity: 1; }
+.sheet tr:hover .sheet-x, .sheet th:hover .sheet-x { opacity: 1; }
+.sheet-x:hover, .sheet-plus:hover { background: var(--hover); color: var(--text); }
+.step-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 12px; }
+.ghost {
+  border: 0; background: none; font: inherit; font-size: 14px; color: var(--muted);
+  cursor: pointer; padding: 8px 10px; border-radius: 6px;
+}
+.ghost:hover { background: var(--hover); color: var(--text); }
