@@ -1265,3 +1265,38 @@ html { scroll-behavior: smooth; }
 .issue-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .issue-block { color: #c0392b; }
 .issue-warn { color: #9a6700; }
+
+.preview-step { display: grid; grid-template-columns: 240px 1fr; gap: 20px; }
+.preview-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; max-height: 480px; overflow-y: auto; }
+.preview-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none;
+  font: inherit; font-size: 13px; text-align: left; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+}
+.preview-row:hover { background: var(--hover); }
+.preview-row.active { background: var(--active); font-weight: 600; }
+.preview-to { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edited-badge { font-size: 11px; color: #9a6700; border: 1px solid #9a6700; border-radius: 99px; padding: 1px 8px; }
+.preview-pane { display: flex; flex-direction: column; gap: 10px; }
+.preview-body { min-height: 300px; resize: vertical; line-height: 1.6; font-family: inherit; }
+.preview-meta { display: flex; justify-content: flex-end; }
+.preview-actions { grid-column: 1 / -1; }
+
+.send-step { display: flex; flex-direction: column; gap: 16px; }
+.send-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-radius: 8px; background: var(--hover); font-size: 14px;
+}
+.send-banner.is-sending { background: #e8f5ec; color: #1a7f37; }
+.send-banner.is-paused { background: #fff4dc; color: #9a6700; }
+.send-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.send-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--hover); font-size: 14px; }
+.send-status { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.send-status.is-sent { color: #1a7f37; }
+.send-status.is-replied { color: #1a7f37; font-weight: 600; }
+.send-status.is-failed { color: #c0392b; }
+.send-status.is-sending { color: #9a6700; }
+.send-error { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+
+@media (max-width: 720px) {
+  .preview-step { grid-template-columns: 1fr; }
+}

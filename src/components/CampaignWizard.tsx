@@ -1,5 +1,7 @@
 import type { Campaign } from '../lib/outreach';
+import PreviewStep from './PreviewStep';
 import RecipientTable from './RecipientTable';
+import SendStep from './SendStep';
 import TemplateStep from './TemplateStep';
 
 export type WizardStep = 'people' | 'write' | 'preview' | 'send';
@@ -21,15 +23,7 @@ interface Props {
   onOpenReply: (threadId: string) => void; // open a reply in Slip's reader — no tab switch
 }
 
-export default function CampaignWizard({
-  campaign,
-  step,
-  selfEmail,
-  onChange,
-  onStep,
-  onExit,
-  onOpenReply: _onOpenReply,
-}: Props) {
+export default function CampaignWizard({ campaign, step, selfEmail, onChange, onStep, onExit, onOpenReply }: Props) {
   return (
     <div className="wizard">
       <div className="wizard-head">
@@ -64,9 +58,17 @@ export default function CampaignWizard({
           onNext={() => onStep('preview')}
         />
       )}
-      {step === 'preview' && <p className="campaigns-empty">preview step coming in task 10</p>}
-      {step === 'send' && <p className="campaigns-empty">send step coming in task 10</p>}
-      {selfEmail === null && step === 'send' && null /* selfEmail is threaded to SendStep in task 10 */}
+      {step === 'preview' && (
+        <PreviewStep
+          campaign={campaign}
+          onChange={onChange}
+          onBack={() => onStep('write')}
+          onNext={() => onStep('send')}
+        />
+      )}
+      {step === 'send' && (
+        <SendStep campaign={campaign} selfEmail={selfEmail} onChange={onChange} onOpenReply={onOpenReply} />
+      )}
     </div>
   );
 }
