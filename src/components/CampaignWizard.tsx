@@ -40,6 +40,9 @@ export default function CampaignWizard({ campaign, step, selfEmail, onChange, on
             <button
               key={key}
               className={key === step ? 'wizard-step active' : 'wizard-step'}
+              // Mid-run edits to people/write would desync the live queue;
+              // paused/done campaigns stay fully navigable.
+              disabled={campaign.state === 'sending' && (key === 'people' || key === 'write')}
               onClick={() => onStep(key)}
             >
               {label}

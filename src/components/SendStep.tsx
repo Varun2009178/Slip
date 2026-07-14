@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchThread } from '../lib/gmail';
 import {
   blockingIssues,
@@ -28,6 +28,11 @@ const STATUS_LABEL: Record<Recipient['status'], string> = {
 const POLL_MS = 60_000;
 
 export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }: Props) {
+  // Freshest campaign for the async reply poll — never write a stale snapshot
+  // back over updates that landed while a fetch was in flight.
+  const live = useRef(campaign);
+  live.current = campaign;
+
   const blockers = blockingIssues(validateCampaign(campaign));
   const counts = {
     sent: campaign.recipients.filter((r) => r.status === 'sent' || r.status === 'replied').length,
@@ -42,19 +47,19 @@ export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }:
     if (!selfEmail) return;
     let cancelled = false;
     async function check() {
-      let current = campaign;
-      for (const r of campaign.recipients) {
+      for (const r of live.current.recipients) {
         if (cancelled) return;
         if (r.status !== 'sent' || !r.threadId) continue;
         try {
           const thread = await fetchThread(r.threadId);
           if (cancelled) return;
-          if (hasReply(thread, selfEmail!)) current = recordReplied(current, r.id);
+          // Fold one recipient at a time into the freshest campaign — a whole
+          // snapshot written after an await would clobber send-loop updates.
+          if (hasReply(thread, selfEmail!)) onChange(recordReplied(live.current, r.id));
         } catch {
           // stale status is fine; next tick retries
         }
       }
-      if (!cancelled && current !== campaign) onChange(current);
     }
     void check();
     const timer = window.setInterval(check, POLL_MS);
@@ -62,9 +67,9 @@ export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }:
       cancelled = true;
       window.clearInterval(timer);
     };
-    // Re-keying on sent-count keeps the poll fresh without restarting per keystroke.
+    // The live ref keeps each tick fresh; onChange identity churn must not restart the poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selfEmail, campaign.id, counts.sent]);
+  }, [selfEmail, campaign.id]);
 
   const banner =
     campaign.state === 'sending'

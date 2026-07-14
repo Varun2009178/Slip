@@ -10,7 +10,7 @@ interface Props {
 
 export default function PreviewStep({ campaign, onChange, onBack, onNext }: Props) {
   const [openId, setOpenId] = useState<string | null>(campaign.recipients[0]?.id ?? null);
-  const open = campaign.recipients.find((r) => r.id === openId) ?? null;
+  const open = campaign.recipients.find((r) => r.id === openId) ?? campaign.recipients[0] ?? null;
   const rendered = open ? renderedFor(campaign, open) : null;
 
   function setOverride(patch: Partial<{ subject: string; body: string }>) {

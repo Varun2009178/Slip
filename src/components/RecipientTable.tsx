@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   addColumn,
   addRow,
@@ -14,6 +15,31 @@ interface Props {
   campaign: Campaign;
   onChange: (c: Campaign) => void;
   onNext: () => void;
+}
+
+// Local draft while editing so renameColumn's no-op on empty/colliding
+// intermediate values can't snap the input back mid-keystroke; the rename
+// commits on blur (Enter blurs).
+function HeaderCell({ col, onRename }: { col: string; onRename: (to: string) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      className="sheet-head"
+      value={draft ?? col}
+      readOnly={col === 'email'}
+      onFocus={() => {
+        if (col !== 'email') setDraft(col);
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+      }}
+      onBlur={() => {
+        if (draft !== null && draft !== col) onRename(draft);
+        setDraft(null);
+      }}
+    />
+  );
 }
 
 export default function RecipientTable({ campaign, onChange, onNext }: Props) {
@@ -44,12 +70,7 @@ export default function RecipientTable({ campaign, onChange, onNext }: Props) {
           <tr>
             {campaign.columns.map((col) => (
               <th key={col}>
-                <input
-                  className="sheet-head"
-                  value={col}
-                  readOnly={col === 'email'}
-                  onChange={(e) => onChange(renameColumn(campaign, col, e.target.value))}
-                />
+                <HeaderCell col={col} onRename={(to) => onChange(renameColumn(campaign, col, to))} />
                 {col !== 'email' && (
                   <button
                     className="sheet-x"
