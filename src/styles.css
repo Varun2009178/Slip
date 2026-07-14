@@ -1375,3 +1375,43 @@ html { scroll-behavior: smooth; }
   .hero-sky { padding-top: 7vh; }
   .video-stage { margin-top: -8vh; }
 }
+
+/* Empty people table: make the two ways in (paste / type) unmissable. */
+.sheet-empty {
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  padding: 2.2rem 1.5rem;
+  margin-top: 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+.sheet-empty-title { margin: 0; font-weight: 600; }
+.sheet-paste-target {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  width: min(20rem, 100%);
+  text-align: center;
+  outline: none;
+  cursor: text;
+}
+.sheet-paste-target:focus { border-color: var(--text); color: var(--text); }
+.sheet-empty-or { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.sheet-empty-add {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 0;
+}

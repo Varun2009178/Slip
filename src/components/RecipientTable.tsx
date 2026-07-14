@@ -115,6 +115,28 @@ export default function RecipientTable({ campaign, onChange, onNext }: Props) {
           ))}
         </tbody>
       </table>
+      {campaign.recipients.length === 0 && (
+        <div className="sheet-empty">
+          <p className="sheet-empty-title">paste your list straight from google sheets</p>
+          {/* A real input so ⌘V has somewhere to land before any cells exist —
+              the paste bubbles up to the wrapper's handler above. */}
+          <input
+            className="sheet-paste-target"
+            readOnly
+            autoFocus
+            placeholder="click here, then paste (⌘V)"
+          />
+          <p className="sheet-empty-or">
+            or{' '}
+            <button
+              className="sheet-empty-add"
+              onClick={() => onChange(addRow(addRow(addRow(campaign))))}
+            >
+              type people in by hand
+            </button>
+          </p>
+        </div>
+      )}
       <div className="step-actions">
         <button className="ghost" onClick={() => onChange(addRow(campaign))}>
           + add person

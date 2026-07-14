@@ -116,4 +116,17 @@ describe('RecipientTable', () => {
     expect(cellInputs(container)[0].value).toBe('Ada');
     await cleanup();
   });
+
+  it('shows an empty state with a paste target; "type people in" seeds three rows', async () => {
+    const { container, cleanup } = await mount(newCampaign());
+    expect(container.querySelector('.sheet-empty')).not.toBeNull();
+    expect(container.querySelector('.sheet-paste-target')).not.toBeNull();
+    const addByHand = container.querySelector<HTMLButtonElement>('.sheet-empty-add')!;
+    await act(async () => {
+      addByHand.click();
+    });
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(3);
+    expect(container.querySelector('.sheet-empty')).toBeNull();
+    await cleanup();
+  });
 });
