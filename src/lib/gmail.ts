@@ -241,28 +241,15 @@ export function toBase64Url(ascii: string): string {
 
 // ── Auth (Google Identity Services) ────────────────────────
 
-const CLIENT_ID_KEY = 'tiny-mail-client-id';
 const SCOPES =
   'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.profile';
 
 let accessToken: string | null = null;
 
-// A build-time client ID (set VITE_GOOGLE_CLIENT_ID when deploying) skips the
-// paste-in setup entirely; a locally saved one still wins so it can be overridden.
+// One shared OAuth client for everyone, baked in at build time
+// (set VITE_GOOGLE_CLIENT_ID when deploying).
 export function getClientId(): string | null {
-  try {
-    return localStorage.getItem(CLIENT_ID_KEY) ?? import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
-  } catch {
-    return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
-  }
-}
-
-export function setClientId(id: string): void {
-  try {
-    localStorage.setItem(CLIENT_ID_KEY, id);
-  } catch {
-    // ignore — id just won't persist
-  }
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
 }
 
 interface TokenResponse {

@@ -205,9 +205,11 @@ export default function App() {
       setConnectError(
         /access_denied|popup_closed|gmail-429|gmail-403/i.test(msg)
           ? DENIED_ERROR
-          : msg === 'auth-failed' || msg === 'missing-client-id'
-            ? "Couldn't connect — check the Client ID and that you're a test user"
-            : `Couldn't connect: ${msg}`,
+          : msg === 'auth-failed'
+            ? "Couldn't connect — try again in a moment"
+            : msg === 'missing-client-id'
+              ? "Couldn't connect — the app is missing its Google client ID (set VITE_GOOGLE_CLIENT_ID)"
+              : `Couldn't connect: ${msg}`,
       );
     }
   }
