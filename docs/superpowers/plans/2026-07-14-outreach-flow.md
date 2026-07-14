@@ -1152,9 +1152,10 @@ interface Props {
   onChange: (c: Campaign) => void;
   onStep: (s: WizardStep) => void;
   onExit: () => void;
+  onOpenReply: (threadId: string) => void; // open a reply in Slip's reader — no tab switch
 }
 
-export default function CampaignWizard({ campaign, step, selfEmail, onChange, onStep, onExit }: Props) {
+export default function CampaignWizard({ campaign, step, selfEmail, onChange, onStep, onExit, onOpenReply }: Props) {
   return (
     <div className="wizard">
       <div className="wizard-head">
@@ -1689,6 +1690,7 @@ interface Props {
   campaign: Campaign;
   selfEmail: string | null;
   onChange: (c: Campaign) => void;
+  onOpenReply: (threadId: string) => void;
 }
 
 const STATUS_LABEL: Record<Recipient['status'], string> = {
@@ -1701,7 +1703,7 @@ const STATUS_LABEL: Record<Recipient['status'], string> = {
 
 const POLL_MS = 60_000;
 
-export default function SendStep({ campaign, selfEmail, onChange }: Props) {
+export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }: Props) {
   const blockers = blockingIssues(validateCampaign(campaign));
   const counts = {
     sent: campaign.recipients.filter((r) => r.status === 'sent' || r.status === 'replied').length,
@@ -1787,6 +1789,11 @@ export default function SendStep({ campaign, selfEmail, onChange }: Props) {
           <li key={r.id} className="send-row">
             <span className="preview-to">{r.fields.email}</span>
             <span className={`send-status is-${r.status}`}>{STATUS_LABEL[r.status]}</span>
+            {r.status === 'replied' && r.threadId && (
+              <button className="ghost" onClick={() => onOpenReply(r.threadId!)}>
+                open reply →
+              </button>
+            )}
             {r.status === 'failed' && (
               <>
                 <span className="send-error" title={r.error}>
@@ -1823,7 +1830,9 @@ import SendStep from './SendStep';
     onNext={() => onStep('send')}
   />
 )}
-{step === 'send' && <SendStep campaign={campaign} selfEmail={selfEmail} onChange={onChange} />}
+{step === 'send' && (
+  <SendStep campaign={campaign} selfEmail={selfEmail} onChange={onChange} onOpenReply={onOpenReply} />
+)}
 ```
 
 - [ ] **Step 4: Styles**
@@ -1937,6 +1946,7 @@ type View =
   | { name: 'force' }
   | { name: 'campaigns' }
   | { name: 'campaign'; id: string; step: WizardStep }
+  | { name: 'thread'; email: Email; campaignId: string } // a reply opened from the tracking view
   | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 ```
 
@@ -1979,6 +1989,23 @@ Add below the state declarations (before `handleConnect`):
         },
       }),
   });
+
+  // "reply without switching tabs": a replied row opens the actual reply in
+  // Slip's reader, one click from the composer.
+  async function openOutreachReply(campaignId: string, threadId: string) {
+    try {
+      const msgs = await fetchThread(threadId);
+      const reply =
+        [...msgs]
+          .reverse()
+          .find((m) => selfEmail && m.fromEmail.toLowerCase() !== selfEmail.toLowerCase()) ??
+        msgs[msgs.length - 1];
+      setThread(msgs);
+      setView({ name: 'thread', email: reply, campaignId });
+    } catch {
+      setToast({ text: "couldn't open the reply — try your inbox" });
+    }
+  }
 
   // Leaving the page kills the send loop; warn while a batch is going out.
   useEffect(() => {
@@ -2044,9 +2071,21 @@ Inside `<main className="pane">`, add before the `view.name === 'home'` block:
                 onChange={updateCampaign}
                 onStep={(step) => setView({ name: 'campaign', id: view.id, step })}
                 onExit={() => setView({ name: 'campaigns' })}
+                onOpenReply={(threadId) => openOutreachReply(view.id, threadId)}
               />
             );
           })()}
+        {view.name === 'thread' && (
+          <Reader
+            email={view.email}
+            earlier={thread}
+            fading={false}
+            doneLabel={undefined}
+            onBack={() => setView({ name: 'campaign', id: view.campaignId, step: 'send' })}
+            onDone={() => undefined}
+            onReply={() => setView({ name: 'composing', replyTo: view.email })}
+          />
+        )}
 ```
 
 Pass the new Sidebar props where `<Sidebar>` is rendered:
