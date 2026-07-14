@@ -18,12 +18,13 @@ interface Props {
   step: WizardStep;
   selfEmail: string | null;
   onChange: (c: Campaign) => void;
+  onChangeBy: (fn: (prev: Campaign) => Campaign) => void; // functional writes for async producers
   onStep: (s: WizardStep) => void;
   onExit: () => void;
   onOpenReply: (threadId: string) => void; // open a reply in Slip's reader — no tab switch
 }
 
-export default function CampaignWizard({ campaign, step, selfEmail, onChange, onStep, onExit, onOpenReply }: Props) {
+export default function CampaignWizard({ campaign, step, selfEmail, onChange, onChangeBy, onStep, onExit, onOpenReply }: Props) {
   return (
     <div className="wizard">
       <div className="wizard-head">
@@ -70,7 +71,13 @@ export default function CampaignWizard({ campaign, step, selfEmail, onChange, on
         />
       )}
       {step === 'send' && (
-        <SendStep campaign={campaign} selfEmail={selfEmail} onChange={onChange} onOpenReply={onOpenReply} />
+        <SendStep
+          campaign={campaign}
+          selfEmail={selfEmail}
+          onChange={onChange}
+          onChangeBy={onChangeBy}
+          onOpenReply={onOpenReply}
+        />
       )}
     </div>
   );

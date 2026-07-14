@@ -207,6 +207,21 @@ export default function App() {
     });
   }
 
+  // Functional variant for async producers (reply poll): folds over React's
+  // authoritative previous state, so a write computed from a render-lagged
+  // snapshot can never revert a concurrent send-loop update.
+  function updateCampaignBy(id: string, fn: (prev: Campaign) => Campaign) {
+    setCampaigns((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (!target) return prev;
+      const next = upsertCampaign(prev, fn(target));
+      if (!saveCampaigns(next)) {
+        setToast({ text: "storage is blocked — this batch won't survive a refresh" });
+      }
+      return next;
+    });
+  }
+
   const sendingActive = campaigns.some((c) => c.state === 'sending');
 
   useCampaignSender({
@@ -780,6 +795,7 @@ export default function App() {
                 onChange={updateCampaign}
                 onStep={(step) => setView({ name: 'campaign', id: view.id, step })}
                 onExit={() => setView({ name: 'campaigns' })}
+                onChangeBy={(fn) => updateCampaignBy(view.id, fn)}
                 onOpenReply={(threadId) => openOutreachReply(view.id, threadId)}
               />
             );

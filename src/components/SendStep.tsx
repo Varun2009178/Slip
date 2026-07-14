@@ -14,6 +14,7 @@ interface Props {
   campaign: Campaign;
   selfEmail: string | null;
   onChange: (c: Campaign) => void;
+  onChangeBy: (fn: (prev: Campaign) => Campaign) => void;
   onOpenReply: (threadId: string) => void;
 }
 
@@ -27,7 +28,7 @@ const STATUS_LABEL: Record<Recipient['status'], string> = {
 
 const POLL_MS = 60_000;
 
-export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }: Props) {
+export default function SendStep({ campaign, selfEmail, onChange, onChangeBy, onOpenReply }: Props) {
   // Freshest campaign for the async reply poll — never write a stale snapshot
   // back over updates that landed while a fetch was in flight.
   const live = useRef(campaign);
@@ -53,9 +54,9 @@ export default function SendStep({ campaign, selfEmail, onChange, onOpenReply }:
         try {
           const thread = await fetchThread(r.threadId);
           if (cancelled) return;
-          // Fold one recipient at a time into the freshest campaign — a whole
-          // snapshot written after an await would clobber send-loop updates.
-          if (hasReply(thread, selfEmail!)) onChange(recordReplied(live.current, r.id));
+          // Functional fold over React's authoritative state — a write built
+          // from any snapshot could clobber a same-tick send-loop update.
+          if (hasReply(thread, selfEmail!)) onChangeBy((prev) => recordReplied(prev, r.id));
         } catch {
           // stale status is fine; next tick retries
         }
