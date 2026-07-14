@@ -234,7 +234,8 @@ export default function App() {
         onAction: () => {
           setToast(null);
           connect()
-            .then(() => updateCampaign({ ...paused, state: 'sending' }))
+            // Functional resume — edits made while the toast sat open must survive.
+            .then(() => updateCampaignBy(paused.id, (prev) => ({ ...prev, state: 'sending' })))
             .catch(() => setToast({ text: "couldn't reconnect — try again from the batch page" }));
         },
       }),
@@ -250,7 +251,7 @@ export default function App() {
           .reverse()
           .find((m) => selfEmail && m.fromEmail.toLowerCase() !== selfEmail.toLowerCase()) ??
         msgs[msgs.length - 1];
-      setThread(msgs);
+      setThread(msgs.filter((m) => m.id !== reply.id));
       setView({ name: 'thread', email: reply, campaignId });
     } catch {
       setToast({ text: "couldn't open the reply — try your inbox" });
