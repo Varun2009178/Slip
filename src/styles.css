@@ -1304,3 +1304,74 @@ html { scroll-behavior: smooth; }
 @media (max-width: 720px) {
   .preview-step { grid-template-columns: 1fr; }
 }
+
+/* ── Meadow landing ───────────────────────────────────────── */
+
+.front-hero {
+  position: relative;
+  min-height: 88vh;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+.front-scene {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: min(54vh, 460px);
+  pointer-events: none;
+}
+.front-scene svg { display: block; width: 100%; height: 100%; }
+
+.hero-sky {
+  position: relative;
+  z-index: 1;
+  width: min(44rem, 100%);
+  padding: 11vh 1.5rem 0;
+}
+.hero-sky .hero-copy { align-items: center; text-align: center; }
+.hero-sky .hero-title {
+  font-size: clamp(2rem, 4.6vw, 3.2rem);
+  letter-spacing: -0.03em;
+}
+.hero-sky .hero-sub { font-size: 1.05rem; max-width: 34rem; }
+.hero-sky .hero-form { justify-content: center; }
+.hero-sky .waitlist-opts { justify-content: center; }
+.hero-sky .waitlist-q { text-align: center; }
+
+.video-stage {
+  position: relative;
+  z-index: 1;
+  max-width: 54rem;
+  margin: min(-16vh, -120px) auto 0;
+  padding: 0 1.5rem;
+}
+.video-card {
+  display: block;
+  width: 100%;
+  background: #fff;
+  border: 2.5px solid #1d1c1a;
+  border-radius: 16px;
+  box-shadow: 0 30px 70px rgba(29, 28, 26, 0.16);
+  animation: fade-up 0.7s ease 0.55s both;
+}
+
+.scene-sway { animation: scene-sway 5.5s ease-in-out infinite alternate; }
+@keyframes scene-sway {
+  from { transform: rotate(-1.6deg); }
+  to { transform: rotate(1.8deg); }
+}
+.scene-drift { animation: scene-drift 26s ease-in-out infinite alternate; }
+@keyframes scene-drift {
+  from { translate: -18px 0; }
+  to { translate: 22px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-sway, .scene-drift { animation: none; }
+}
+
+@media (max-width: 700px) {
+  .front-hero { min-height: 80vh; }
+  .front-scene { height: 34vh; }
+  .hero-sky { padding-top: 7vh; }
+  .video-stage { margin-top: -8vh; }
+}

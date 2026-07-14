@@ -29,6 +29,7 @@ import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/s
 import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
+import FrontScene from './components/FrontScene';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
@@ -671,18 +672,19 @@ export default function App() {
             </button>
           </nav>
         </header>
-        {gate === 'waitlist' ? (
-          <div className="hero-page">
-            <Waitlist onHaveAccess={claimAccess} />
+        <section className="front-hero">
+          <FrontScene />
+          <div className="hero-sky">
+            {gate === 'waitlist' ? (
+              <Waitlist onHaveAccess={claimAccess} />
+            ) : (
+              <Connect error={connectError} onConnect={handleConnect} />
+            )}
           </div>
-        ) : (
-          <div className="app">
-            <Connect error={connectError} onConnect={handleConnect} />
-            <a className="scroll-hint" href="#tour">
-              ↓ see what’s inside
-            </a>
-          </div>
-        )}
+        </section>
+        <div className="video-stage">
+          <video className="video-card" src="/slip_email.mp4" autoPlay muted loop playsInline />
+        </div>
         <Showcase />
         <Roadmap />
       </div>

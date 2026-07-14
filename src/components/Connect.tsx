@@ -27,16 +27,17 @@ export function SlipAnimation({ size = 88 }: { size?: number }) {
 
 export default function Connect({ error, onConnect }: Props) {
   return (
-    <div className="connect">
-      <SlipAnimation />
-      <h1 className="connect-sentence">
-        <strong>Slip</strong>, a super fast cold email inbox.
-      </h1>
-      <p className="connect-tag">Track and reply without switching tabs.</p>
-      <p className="connect-mobile">100,000x better on a computer.</p>
-      <button className="send connect-cta" onClick={onConnect}>
-        Connect Gmail
-      </button>
+    <div className="hero-wrap">
+      <div className="hero-copy">
+        <h1 className="hero-title">a super fast cold email inbox.</h1>
+        <p className="hero-sub">
+          send personalized batches from your own gmail. track and reply — without switching tabs.
+        </p>
+        <p className="connect-mobile">100,000x better on a computer.</p>
+        <button className="send connect-cta" onClick={onConnect}>
+          connect gmail
+        </button>
+      </div>
       {error === DENIED_ERROR ? (
         <p className="connect-denied">
           sorry, you aren't cool enough to access slip yet.{' '}
