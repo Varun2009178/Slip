@@ -18,12 +18,14 @@ interface Props {
   profile: Profile | null;
   theme: 'default' | 'paper';
   start: 'keys' | 'inbox';
+  outreachActive: boolean;
   onNavigate: (section: Section) => void;
   onCompose: () => void;
   onToggleTheme: () => void;
   onToggleStart: () => void;
   onRequestFeature: () => void;
   onHome: () => void;
+  onOutreach: () => void;
 }
 
 const ITEMS: { key: Section; label: string; icon: React.ReactNode }[] = [
@@ -41,12 +43,14 @@ export default function Sidebar({
   profile,
   theme,
   start,
+  outreachActive,
   onNavigate,
   onCompose,
   onToggleTheme,
   onToggleStart,
   onRequestFeature,
   onHome,
+  onOutreach,
 }: Props) {
   const counts: Partial<Record<Section, number | null>> = {
     inbox: inboxCount,
@@ -64,6 +68,15 @@ export default function Sidebar({
           <IconCompose />
         </button>
       </div>
+
+      <div className="side-label">Outreach</div>
+      <button
+        className={outreachActive ? 'nav-item active' : 'nav-item'}
+        onClick={onOutreach}
+      >
+        <IconSent />
+        Batches
+      </button>
 
       <div className="side-label">Mail</div>
       {ITEMS.map(({ key, label, icon }) => {
@@ -102,7 +115,7 @@ export default function Sidebar({
           title="What you land on right after connecting"
         >
           <span className="theme-dot">{start === 'keys' ? '⌘' : '✉'}</span>
-          Start: {start === 'keys' ? 'keys' : 'inbox'}
+          Start: {start === 'keys' ? 'outreach' : 'inbox'}
         </button>
         <button
           className="nav-item"

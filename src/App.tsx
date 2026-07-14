@@ -7,6 +7,7 @@ import {
   fetchInbox,
   fetchMessage,
   fetchProfile,
+  fetchSelfEmail,
   fetchSent,
   fetchThread,
   listDrafts,
@@ -18,6 +19,11 @@ import {
   type OutgoingMail,
   type Profile,
 } from './lib/gmail';
+import { newCampaign, type Campaign } from './lib/outreach';
+import { loadCampaigns, saveCampaigns, upsertCampaign } from './lib/campaignStore';
+import { useCampaignSender } from './hooks/useCampaignSender';
+import Campaigns from './components/Campaigns';
+import CampaignWizard, { type WizardStep } from './components/CampaignWizard';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/snooze';
 import { formatWhen, snoozePresets } from './lib/when';
@@ -44,6 +50,9 @@ type View =
   | { name: 'list' }
   | { name: 'reading'; id: string }
   | { name: 'force' }
+  | { name: 'campaigns' }
+  | { name: 'campaign'; id: string; step: WizardStep }
+  | { name: 'thread'; email: Email; campaignId: string } // a reply opened from the tracking view
   | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 
 type Theme = 'default' | 'paper';
@@ -127,6 +136,8 @@ export default function App() {
   const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(loadCampaigns);
+  const [selfEmail, setSelfEmail] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -186,6 +197,61 @@ export default function App() {
     }
   }
 
+  function updateCampaign(c: Campaign) {
+    setCampaigns((prev) => {
+      const next = upsertCampaign(prev, c);
+      if (!saveCampaigns(next)) {
+        setToast({ text: "storage is blocked — this batch won't survive a refresh" });
+      }
+      return next;
+    });
+  }
+
+  const sendingActive = campaigns.some((c) => c.state === 'sending');
+
+  useCampaignSender({
+    campaigns,
+    update: updateCampaign,
+    onAuthExpired: (paused) =>
+      setToast({
+        text: 'gmail session expired — the batch is paused',
+        actionLabel: 'reconnect & resume',
+        onAction: () => {
+          setToast(null);
+          connect()
+            .then(() => updateCampaign({ ...paused, state: 'sending' }))
+            .catch(() => setToast({ text: "couldn't reconnect — try again from the batch page" }));
+        },
+      }),
+  });
+
+  // "reply without switching tabs": a replied row opens the actual reply in
+  // Slip's reader, one click from the composer.
+  async function openOutreachReply(campaignId: string, threadId: string) {
+    try {
+      const msgs = await fetchThread(threadId);
+      const reply =
+        [...msgs]
+          .reverse()
+          .find((m) => selfEmail && m.fromEmail.toLowerCase() !== selfEmail.toLowerCase()) ??
+        msgs[msgs.length - 1];
+      setThread(msgs);
+      setView({ name: 'thread', email: reply, campaignId });
+    } catch {
+      setToast({ text: "couldn't open the reply — try your inbox" });
+    }
+  }
+
+  // Leaving the page kills the send loop; warn while a batch is going out.
+  useEffect(() => {
+    if (!sendingActive) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [sendingActive]);
+
   async function handleConnect() {
     setConnectError(null);
     try {
@@ -195,7 +261,8 @@ export default function App() {
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
-      setView(start === 'keys' ? { name: 'home' } : { name: 'list' });
+      setView(start === 'inbox' ? { name: 'list' } : { name: 'campaigns' });
+      fetchSelfEmail().then(setSelfEmail).catch(() => undefined);
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
@@ -636,6 +703,9 @@ export default function App() {
     commands.push({ id: 'force', label: 'force reply mode', keys: 'Z', run: () => setView({ name: 'force' }) });
   }
   commands.push({ id: 'compose', label: 'compose', keys: 'C', run: () => setView({ name: 'composing' }) });
+  if (view.name !== 'campaigns') {
+    commands.push({ id: 'go-outreach', label: 'go to outreach', run: () => setView({ name: 'campaigns' }) });
+  }
   if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'go to inbox', run: () => navigate('inbox') });
   if (section !== 'read') commands.push({ id: 'go-read', label: 'go to read', run: () => navigate('read') });
   if (section !== 'snoozed') commands.push({ id: 'go-snoozed', label: 'go to snoozed', run: () => navigate('snoozed') });
@@ -649,7 +719,7 @@ export default function App() {
     { id: 'feature', label: 'request a feature', run: requestFeature },
     {
       id: 'start',
-      label: start === 'keys' ? 'start in inbox after connecting' : 'start with the key screen',
+      label: start === 'keys' ? 'start in inbox after connecting' : 'start in outreach after connecting',
       run: toggleStart,
     },
     {
@@ -673,14 +743,58 @@ export default function App() {
         profile={profile}
         theme={theme}
         start={start}
+        outreachActive={view.name === 'campaigns' || view.name === 'campaign' || view.name === 'thread'}
         onNavigate={navigate}
         onCompose={() => setView({ name: 'composing' })}
         onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
         onToggleStart={toggleStart}
         onRequestFeature={requestFeature}
         onHome={() => setView({ name: 'home' })}
+        onOutreach={() => setView({ name: 'campaigns' })}
       />
       <main className="pane">
+        {view.name === 'campaigns' && (
+          <Campaigns
+            campaigns={campaigns}
+            onOpen={(id) => {
+              const c = campaigns.find((x) => x.id === id);
+              const step: WizardStep = c && c.state !== 'draft' ? 'send' : 'people';
+              setView({ name: 'campaign', id, step });
+            }}
+            onNew={() => {
+              const c = newCampaign();
+              updateCampaign(c);
+              setView({ name: 'campaign', id: c.id, step: 'people' });
+            }}
+          />
+        )}
+        {view.name === 'campaign' &&
+          (() => {
+            const c = campaigns.find((x) => x.id === view.id);
+            if (!c) return null;
+            return (
+              <CampaignWizard
+                campaign={c}
+                step={view.step}
+                selfEmail={selfEmail}
+                onChange={updateCampaign}
+                onStep={(step) => setView({ name: 'campaign', id: view.id, step })}
+                onExit={() => setView({ name: 'campaigns' })}
+                onOpenReply={(threadId) => openOutreachReply(view.id, threadId)}
+              />
+            );
+          })()}
+        {view.name === 'thread' && (
+          <Reader
+            email={view.email}
+            earlier={thread}
+            fading={false}
+            doneLabel={undefined}
+            onBack={() => setView({ name: 'campaign', id: view.campaignId, step: 'send' })}
+            onDone={() => undefined}
+            onReply={() => setView({ name: 'composing', replyTo: view.email })}
+          />
+        )}
         {view.name === 'home' && (
           <Home
             onNavigate={navigate}
