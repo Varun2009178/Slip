@@ -1190,3 +1190,39 @@ html { scroll-behavior: smooth; }
 }
 
 :root[data-theme='paper'] .html-body { background: #fffdf8; }
+
+/* ── Outreach ─────────────────────────────────────────────── */
+
+.campaigns { max-width: 720px; margin: 0 auto; padding: 48px 24px; width: 100%; }
+.campaigns-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.campaigns-head h1 { font-size: 22px; font-weight: 700; }
+.campaigns-empty { color: var(--muted); line-height: 1.6; max-width: 46ch; }
+.campaign-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.campaign-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; border: 0; border-radius: 8px; background: none;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.campaign-row:hover { background: var(--hover); }
+.campaign-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-state { font-size: 12px; color: var(--muted); border: 1px solid var(--hover); border-radius: 99px; padding: 2px 10px; }
+.campaign-state.is-sending { color: #1a7f37; border-color: #1a7f37; }
+.campaign-state.is-paused { color: #9a6700; border-color: #9a6700; }
+.campaign-stats { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+.wizard { max-width: 860px; margin: 0 auto; padding: 32px 24px; width: 100%; }
+.wizard-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.wizard-back { border: 0; background: none; font: inherit; color: var(--muted); cursor: pointer; padding: 4px 0; }
+.wizard-back:hover { color: var(--text); }
+.wizard-name {
+  font: inherit; font-weight: 700; font-size: 17px; border: 0; background: none;
+  border-bottom: 1px dashed transparent; min-width: 0; flex: 1;
+}
+.wizard-name:hover, .wizard-name:focus { border-bottom-color: var(--muted); outline: none; }
+.wizard-steps { display: flex; gap: 4px; }
+.wizard-step {
+  border: 0; background: none; font: inherit; font-size: 13px; color: var(--muted);
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+}
+.wizard-step:hover { background: var(--hover); }
+.wizard-step.active { background: var(--active); color: var(--text); font-weight: 600; }
