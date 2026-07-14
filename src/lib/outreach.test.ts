@@ -3,6 +3,7 @@ import {
   addColumn,
   addRow,
   applyPaste,
+  blockingIssues,
   hasReply,
   isValidEmail,
   MAX_GAP_MS,
@@ -73,6 +74,20 @@ describe('parsePasted', () => {
   });
   it('returns empty for empty paste', () => {
     expect(parsePasted('  \n ')).toEqual({ columns: [], rows: [] });
+  });
+  it('keeps only the first email-looking data cell as email, preserving later ones', () => {
+    const text = 'Ada\tada@cs.stanford.edu\tbackup@cs.stanford.edu';
+    expect(parsePasted(text)).toEqual({
+      columns: ['col1', 'email', 'col3'],
+      rows: [{ col1: 'Ada', email: 'ada@cs.stanford.edu', col3: 'backup@cs.stanford.edu' }],
+    });
+  });
+  it('de-dupes header names that collide after lowercasing', () => {
+    const text = 'Email\temail\nada@cs.stanford.edu\tbackup@cs.stanford.edu';
+    expect(parsePasted(text)).toEqual({
+      columns: ['email', 'email2'],
+      rows: [{ email: 'ada@cs.stanford.edu', email2: 'backup@cs.stanford.edu' }],
+    });
   });
 });
 
@@ -170,14 +185,16 @@ describe('validateCampaign', () => {
     const c = { ...filled(), recipients: [] };
     expect(validateCampaign(c).map((i) => i.kind)).toContain('no-recipients');
   });
-  it('flags a missing email column', () => {
+  it('flags a missing email column without redundant per-recipient bad-email noise', () => {
     const c = filled();
     const noEmail = {
       ...c,
       columns: ['name'],
       recipients: c.recipients.map((r) => ({ ...r, fields: { name: 'Ada' } })),
     };
-    expect(validateCampaign(noEmail).map((i) => i.kind)).toContain('no-email-column');
+    const kinds = validateCampaign(noEmail).map((i) => i.kind);
+    expect(kinds).toContain('no-email-column');
+    expect(kinds).not.toContain('bad-email');
   });
   it('flags invalid emails with the recipient id', () => {
     let c = filled();
@@ -199,6 +216,22 @@ describe('validateCampaign', () => {
       recipients: c.recipients.map((r) => ({ ...r, override: { subject: 's', body: 'b' } })),
     };
     expect(validateCampaign(overridden).map((i) => i.kind)).not.toContain('empty-value');
+  });
+  it('flags duplicate emails on the second and later occurrences, case-insensitively', () => {
+    let c = applyPaste(newCampaign(), 'name\temail\nAda\tada@cs.stanford.edu');
+    c = applyPaste(c, 'name\temail\nAda again\t Ada@CS.Stanford.EDU \nGrace\tgrace@mit.edu');
+    c = { ...c, subjectTemplate: 'hi', bodyTemplate: 'hello' };
+    const dupes = validateCampaign(c).filter((i) => i.kind === 'duplicate-email');
+    expect(dupes).toHaveLength(1);
+    expect(dupes[0].recipientId).toBe(c.recipients[1].id);
+    expect(dupes[0].message).toContain('appears more than once');
+  });
+  it('counts duplicate-email as blocking', () => {
+    const issues = [
+      { kind: 'duplicate-email' as const, message: 'x' },
+      { kind: 'empty-value' as const, message: 'y' },
+    ];
+    expect(blockingIssues(issues).map((i) => i.kind)).toEqual(['duplicate-email']);
   });
 });
 

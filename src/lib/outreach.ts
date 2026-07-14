@@ -41,9 +41,23 @@ export interface ParsedPaste {
   rows: Record<string, string>[];
 }
 
+// Duplicate column names would collide as row keys (last one silently wins),
+// so later duplicates get a numeric suffix: email, email2, email3, …
+function dedupeColumns(names: string[]): string[] {
+  const seen = new Set<string>();
+  return names.map((name) => {
+    let unique = name;
+    for (let n = 2; seen.has(unique); n++) unique = `${name}${n}`;
+    seen.add(unique);
+    return unique;
+  });
+}
+
 // Sheets pastes as TSV. The first row is headers unless a cell in it is an
 // email address — then it's data and columns get auto names, with the email
-// column detected so templates can rely on 'email' existing.
+// column detected so templates can rely on 'email' existing. Only the first
+// email-looking cell becomes 'email'; later ones keep their colN name so
+// their values survive.
 export function parsePasted(text: string): ParsedPaste {
   const lines = text
     .replace(/\r\n?/g, '\n')
@@ -52,9 +66,12 @@ export function parsePasted(text: string): ParsedPaste {
   if (lines.length === 0) return { columns: [], rows: [] };
   const grid = lines.map((l) => l.split('\t').map((c) => c.trim()));
   const firstIsData = grid[0].some(isValidEmail);
-  const columns = firstIsData
-    ? grid[0].map((cell, i) => (isValidEmail(cell) ? 'email' : `col${i + 1}`))
-    : grid[0].map((h, i) => h.toLowerCase() || `col${i + 1}`);
+  const emailAt = grid[0].findIndex(isValidEmail);
+  const columns = dedupeColumns(
+    firstIsData
+      ? grid[0].map((_cell, i) => (i === emailAt ? 'email' : `col${i + 1}`))
+      : grid[0].map((h, i) => h.toLowerCase() || `col${i + 1}`),
+  );
   const dataRows = firstIsData ? grid : grid.slice(1);
   const rows = dataRows.map((cells) =>
     Object.fromEntries(columns.map((c, i) => [c, cells[i] ?? ''])),
@@ -161,7 +178,13 @@ export function applyPaste(c: Campaign, text: string): Campaign {
 // ── Validation ─────────────────────────────────────────────
 
 export interface Issue {
-  kind: 'no-recipients' | 'no-email-column' | 'bad-email' | 'unknown-var' | 'empty-value';
+  kind:
+    | 'no-recipients'
+    | 'no-email-column'
+    | 'bad-email'
+    | 'duplicate-email'
+    | 'unknown-var'
+    | 'empty-value';
   message: string;
   recipientId?: string;
   variable?: string;
@@ -172,7 +195,8 @@ export function validateCampaign(c: Campaign): Issue[] {
   if (c.recipients.length === 0) {
     issues.push({ kind: 'no-recipients', message: 'add at least one person' });
   }
-  if (!c.columns.includes('email')) {
+  const hasEmailColumn = c.columns.includes('email');
+  if (!hasEmailColumn) {
     issues.push({ kind: 'no-email-column', message: "the table needs an 'email' column" });
   }
   const vars = [...new Set([...templateVars(c.subjectTemplate), ...templateVars(c.bodyTemplate)])];
@@ -181,13 +205,27 @@ export function validateCampaign(c: Campaign): Issue[] {
       issues.push({ kind: 'unknown-var', message: `{{${v}}} doesn't match any column`, variable: v });
     }
   }
+  const seenEmails = new Set<string>();
   for (const r of c.recipients) {
-    if (!isValidEmail(r.fields.email ?? '')) {
-      issues.push({
-        kind: 'bad-email',
-        message: `"${r.fields.email ?? ''}" isn't a valid email`,
-        recipientId: r.id,
-      });
+    // Per-recipient email checks are pure noise while the email column itself
+    // is missing — that's one problem, not N+1.
+    if (hasEmailColumn) {
+      const email = (r.fields.email ?? '').trim().toLowerCase();
+      if (!isValidEmail(email)) {
+        issues.push({
+          kind: 'bad-email',
+          message: `"${r.fields.email ?? ''}" isn't a valid email`,
+          recipientId: r.id,
+        });
+      } else if (seenEmails.has(email)) {
+        issues.push({
+          kind: 'duplicate-email',
+          message: `"${r.fields.email}" appears more than once`,
+          recipientId: r.id,
+        });
+      } else {
+        seenEmails.add(email);
+      }
     }
     if (r.override) continue; // hand-edited emails don't use the template
     for (const v of vars) {
@@ -272,6 +310,11 @@ export function recordReplied(c: Campaign, id: string): Campaign {
 
 // ── Reply detection ────────────────────────────────────────
 
+// "Anyone but me in the thread" is the whole heuristic. Two known limits:
+// an auto-responder (out-of-office, ticket bot) in the thread counts as a
+// reply, and if the user sends via a send-as alias that differs from their
+// profile address, their own messages won't match selfEmail and would be
+// mistaken for replies.
 export function hasReply(thread: Email[], selfEmail: string): boolean {
   const self = selfEmail.trim().toLowerCase();
   return thread.some((m) => m.fromEmail.trim().toLowerCase() !== self);
