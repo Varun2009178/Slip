@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addColumn,
+  addRow,
+  applyPaste,
   isValidEmail,
+  newCampaign,
   parsePasted,
+  removeColumn,
+  removeRow,
+  renameColumn,
   renderTemplate,
+  setCell,
   templateVars,
+  validateCampaign,
 } from './outreach';
 
 describe('isValidEmail', () => {
@@ -74,5 +83,108 @@ describe('renderTemplate', () => {
   });
   it('leaves unknown variables literal so they are visible in preview', () => {
     expect(renderTemplate('hi {{nmae}}', { name: 'Ada' })).toBe('hi {{nmae}}');
+  });
+});
+
+describe('newCampaign', () => {
+  it('starts as an empty draft with name and email columns', () => {
+    const c = newCampaign();
+    expect(c.state).toBe('draft');
+    expect(c.columns).toEqual(['name', 'email']);
+    expect(c.recipients).toEqual([]);
+    expect(c.id).not.toBe(newCampaign().id);
+  });
+});
+
+describe('table editing', () => {
+  it('setCell writes a field on one recipient', () => {
+    let c = addRow(newCampaign());
+    c = setCell(c, c.recipients[0].id, 'name', 'Ada');
+    expect(c.recipients[0].fields.name).toBe('Ada');
+  });
+  it('addRow/removeRow', () => {
+    let c = addRow(addRow(newCampaign()));
+    expect(c.recipients).toHaveLength(2);
+    c = removeRow(c, c.recipients[0].id);
+    expect(c.recipients).toHaveLength(1);
+  });
+  it('addColumn ignores duplicates and empties', () => {
+    let c = addColumn(newCampaign(), 'paper');
+    expect(c.columns).toEqual(['name', 'email', 'paper']);
+    expect(addColumn(c, 'paper').columns).toEqual(['name', 'email', 'paper']);
+    expect(addColumn(c, '  ').columns).toEqual(['name', 'email', 'paper']);
+  });
+  it('renameColumn renames the column and every row key', () => {
+    let c = addRow(newCampaign());
+    c = setCell(c, c.recipients[0].id, 'name', 'Ada');
+    c = renameColumn(c, 'name', 'first');
+    expect(c.columns).toEqual(['first', 'email']);
+    expect(c.recipients[0].fields).toEqual({ first: 'Ada' });
+  });
+  it('removeColumn refuses to remove email', () => {
+    const c = newCampaign();
+    expect(removeColumn(c, 'email').columns).toContain('email');
+    expect(removeColumn(c, 'name').columns).toEqual(['email']);
+  });
+});
+
+describe('applyPaste', () => {
+  const text = 'name\temail\nAda\tada@cs.stanford.edu';
+  it('replaces columns and rows when the table is empty', () => {
+    const c = applyPaste(addRow(newCampaign()), text); // one blank row still counts as empty
+    expect(c.columns).toEqual(['name', 'email']);
+    expect(c.recipients).toHaveLength(1);
+    expect(c.recipients[0].fields.email).toBe('ada@cs.stanford.edu');
+  });
+  it('appends rows and merges new columns when the table has data', () => {
+    let c = applyPaste(newCampaign(), text);
+    c = applyPaste(c, 'name\temail\tpaper\nGrace\tgrace@mit.edu\tCOBOL');
+    expect(c.columns).toEqual(['name', 'email', 'paper']);
+    expect(c.recipients).toHaveLength(2);
+    expect(c.recipients[1].fields.paper).toBe('COBOL');
+  });
+});
+
+describe('validateCampaign', () => {
+  function filled(): ReturnType<typeof newCampaign> {
+    let c = applyPaste(newCampaign(), 'name\temail\nAda\tada@cs.stanford.edu');
+    return { ...c, subjectTemplate: 'hi {{name}}', bodyTemplate: 'about {{name}}' };
+  }
+  it('passes a complete campaign', () => {
+    expect(validateCampaign(filled())).toEqual([]);
+  });
+  it('flags no recipients', () => {
+    const c = { ...filled(), recipients: [] };
+    expect(validateCampaign(c).map((i) => i.kind)).toContain('no-recipients');
+  });
+  it('flags a missing email column', () => {
+    const c = filled();
+    const noEmail = {
+      ...c,
+      columns: ['name'],
+      recipients: c.recipients.map((r) => ({ ...r, fields: { name: 'Ada' } })),
+    };
+    expect(validateCampaign(noEmail).map((i) => i.kind)).toContain('no-email-column');
+  });
+  it('flags invalid emails with the recipient id', () => {
+    let c = filled();
+    c = setCell(c, c.recipients[0].id, 'email', 'nope');
+    const issue = validateCampaign(c).find((i) => i.kind === 'bad-email');
+    expect(issue?.recipientId).toBe(c.recipients[0].id);
+  });
+  it('flags template variables that match no column', () => {
+    const c = { ...filled(), bodyTemplate: 'hi {{nmae}}' };
+    const issue = validateCampaign(c).find((i) => i.kind === 'unknown-var');
+    expect(issue?.variable).toBe('nmae');
+  });
+  it('flags empty values for used variables, unless the recipient has an override', () => {
+    let c = filled();
+    c = setCell(c, c.recipients[0].id, 'name', '');
+    expect(validateCampaign(c).map((i) => i.kind)).toContain('empty-value');
+    const overridden = {
+      ...c,
+      recipients: c.recipients.map((r) => ({ ...r, override: { subject: 's', body: 'b' } })),
+    };
+    expect(validateCampaign(overridden).map((i) => i.kind)).not.toContain('empty-value');
   });
 });
