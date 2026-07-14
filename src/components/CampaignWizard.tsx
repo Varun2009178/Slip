@@ -1,5 +1,6 @@
 import type { Campaign } from '../lib/outreach';
 import RecipientTable from './RecipientTable';
+import TemplateStep from './TemplateStep';
 
 export type WizardStep = 'people' | 'write' | 'preview' | 'send';
 
@@ -55,7 +56,14 @@ export default function CampaignWizard({
       {step === 'people' && (
         <RecipientTable campaign={campaign} onChange={onChange} onNext={() => onStep('write')} />
       )}
-      {step === 'write' && <p className="campaigns-empty">write step coming in task 9</p>}
+      {step === 'write' && (
+        <TemplateStep
+          campaign={campaign}
+          onChange={onChange}
+          onBack={() => onStep('people')}
+          onNext={() => onStep('preview')}
+        />
+      )}
       {step === 'preview' && <p className="campaigns-empty">preview step coming in task 10</p>}
       {step === 'send' && <p className="campaigns-empty">send step coming in task 10</p>}
       {selfEmail === null && step === 'send' && null /* selfEmail is threaded to SendStep in task 10 */}
