@@ -1,3 +1,5 @@
+import type { Email } from './types';
+
 // ── Types ──────────────────────────────────────────────────
 
 export type RecipientStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'replied';
@@ -200,4 +202,86 @@ export function validateCampaign(c: Campaign): Issue[] {
 // Issues that block sending; empty-value is a warning (fixable in preview).
 export function blockingIssues(issues: Issue[]): Issue[] {
   return issues.filter((i) => i.kind !== 'empty-value');
+}
+
+// ── Rendering for send ─────────────────────────────────────
+
+export function renderedFor(c: Campaign, r: Recipient): { subject: string; body: string } {
+  return (
+    r.override ?? {
+      subject: renderTemplate(c.subjectTemplate, r.fields),
+      body: renderTemplate(c.bodyTemplate, r.fields),
+    }
+  );
+}
+
+// ── Send-state transitions ─────────────────────────────────
+
+function setStatus(c: Campaign, id: string, patch: Partial<Recipient>): Campaign {
+  return mapRecipient(c, id, (r) => ({ ...r, ...patch }));
+}
+
+// Once nothing is queued or in flight, a sending campaign is done.
+function settle(c: Campaign): Campaign {
+  const active = c.recipients.some((r) => r.status === 'queued' || r.status === 'sending');
+  return c.state === 'sending' && !active ? { ...c, state: 'done' } : c;
+}
+
+export function startNextSend(c: Campaign): { campaign: Campaign; recipient: Recipient } | null {
+  if (c.state !== 'sending') return null;
+  const next = c.recipients.find((r) => r.status === 'queued');
+  if (!next) return null;
+  const recipient: Recipient = { ...next, status: 'sending' };
+  return { campaign: mapRecipient(c, next.id, () => recipient), recipient };
+}
+
+export function recordSent(c: Campaign, id: string, sent: { id: string; threadId: string }): Campaign {
+  return settle(
+    setStatus(c, id, {
+      status: 'sent',
+      messageId: sent.id,
+      threadId: sent.threadId,
+      sentAt: new Date().toISOString(),
+      error: undefined,
+    }),
+  );
+}
+
+export function recordFailed(c: Campaign, id: string, error: string): Campaign {
+  return settle(setStatus(c, id, { status: 'failed', error }));
+}
+
+export function retryRecipient(c: Campaign, id: string): Campaign {
+  const r = c.recipients.find((x) => x.id === id);
+  if (r?.status !== 'failed') return c;
+  return setStatus(c, id, { status: 'queued', error: undefined });
+}
+
+// Auth expired before the API accepted the send — safe to put back in line.
+export function requeueRecipient(c: Campaign, id: string): Campaign {
+  const r = c.recipients.find((x) => x.id === id);
+  if (r?.status !== 'sending') return c;
+  return setStatus(c, id, { status: 'queued' });
+}
+
+export function recordReplied(c: Campaign, id: string): Campaign {
+  const r = c.recipients.find((x) => x.id === id);
+  if (r?.status !== 'sent') return c;
+  return setStatus(c, id, { status: 'replied' });
+}
+
+// ── Reply detection ────────────────────────────────────────
+
+export function hasReply(thread: Email[], selfEmail: string): boolean {
+  const self = selfEmail.trim().toLowerCase();
+  return thread.some((m) => m.fromEmail.trim().toLowerCase() !== self);
+}
+
+// ── Pacing ─────────────────────────────────────────────────
+
+export const MIN_GAP_MS = 45_000;
+export const MAX_GAP_MS = 120_000;
+
+export function nextSendDelayMs(rand: () => number = Math.random): number {
+  return Math.floor(MIN_GAP_MS + rand() * (MAX_GAP_MS - MIN_GAP_MS));
 }

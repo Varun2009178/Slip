@@ -3,17 +3,30 @@ import {
   addColumn,
   addRow,
   applyPaste,
+  hasReply,
   isValidEmail,
+  MAX_GAP_MS,
+  MIN_GAP_MS,
   newCampaign,
+  nextSendDelayMs,
   parsePasted,
+  recordFailed,
+  recordReplied,
+  recordSent,
   removeColumn,
   removeRow,
   renameColumn,
+  renderedFor,
   renderTemplate,
+  requeueRecipient,
+  retryRecipient,
   setCell,
+  startNextSend,
   templateVars,
   validateCampaign,
 } from './outreach';
+import type { Campaign } from './outreach';
+import type { Email } from './types';
 
 describe('isValidEmail', () => {
   it('accepts a normal address', () => {
@@ -186,5 +199,92 @@ describe('validateCampaign', () => {
       recipients: c.recipients.map((r) => ({ ...r, override: { subject: 's', body: 'b' } })),
     };
     expect(validateCampaign(overridden).map((i) => i.kind)).not.toContain('empty-value');
+  });
+});
+
+function sendable(): Campaign {
+  let c = applyPaste(newCampaign(), 'name\temail\nAda\tada@cs.stanford.edu\nGrace\tgrace@mit.edu');
+  return { ...c, subjectTemplate: 'hi {{name}}', bodyTemplate: 'dear {{name}}', state: 'sending' as const };
+}
+
+describe('renderedFor', () => {
+  it('renders the templates with the recipient fields', () => {
+    const c = sendable();
+    expect(renderedFor(c, c.recipients[0])).toEqual({ subject: 'hi Ada', body: 'dear Ada' });
+  });
+  it('prefers a per-recipient override', () => {
+    const c = sendable();
+    const r = { ...c.recipients[0], override: { subject: 's', body: 'b' } };
+    expect(renderedFor(c, r)).toEqual({ subject: 's', body: 'b' });
+  });
+});
+
+describe('send-state transitions', () => {
+  it('startNextSend picks the first queued recipient and marks it sending', () => {
+    const next = startNextSend(sendable());
+    expect(next?.recipient.fields.name).toBe('Ada');
+    expect(next?.campaign.recipients[0].status).toBe('sending');
+  });
+  it('startNextSend returns null when paused or exhausted', () => {
+    expect(startNextSend({ ...sendable(), state: 'paused' })).toBeNull();
+    const done = {
+      ...sendable(),
+      recipients: sendable().recipients.map((r) => ({ ...r, status: 'sent' as const })),
+    };
+    expect(startNextSend(done)).toBeNull();
+  });
+  it('recordSent stores ids and date; campaign becomes done after the last one', () => {
+    let c = sendable();
+    const first = startNextSend(c)!;
+    c = recordSent(first.campaign, first.recipient.id, { id: 'm1', threadId: 't1' });
+    expect(c.recipients[0]).toMatchObject({ status: 'sent', messageId: 'm1', threadId: 't1' });
+    expect(c.state).toBe('sending'); // one still queued
+    const second = startNextSend(c)!;
+    c = recordSent(second.campaign, second.recipient.id, { id: 'm2', threadId: 't2' });
+    expect(c.state).toBe('done');
+  });
+  it('recordFailed keeps going and retryRecipient requeues', () => {
+    let c = sendable();
+    const first = startNextSend(c)!;
+    c = recordFailed(first.campaign, first.recipient.id, 'gmail-500');
+    expect(c.recipients[0]).toMatchObject({ status: 'failed', error: 'gmail-500' });
+    c = retryRecipient(c, c.recipients[0].id);
+    expect(c.recipients[0].status).toBe('queued');
+    expect(c.recipients[0].error).toBeUndefined();
+  });
+  it('requeueRecipient puts a sending recipient back to queued (auth-expiry path)', () => {
+    const first = startNextSend(sendable())!;
+    const c = requeueRecipient(first.campaign, first.recipient.id);
+    expect(c.recipients[0].status).toBe('queued');
+  });
+  it('recordReplied only flips sent recipients', () => {
+    let c = sendable();
+    const first = startNextSend(c)!;
+    c = recordSent(first.campaign, first.recipient.id, { id: 'm1', threadId: 't1' });
+    c = recordReplied(c, c.recipients[0].id);
+    expect(c.recipients[0].status).toBe('replied');
+    expect(recordReplied(c, c.recipients[1].id).recipients[1].status).toBe('queued');
+  });
+});
+
+describe('hasReply', () => {
+  const msg = (fromEmail: string): Email => ({
+    id: '1', threadId: 't', rfcMessageId: '', from: fromEmail, fromEmail,
+    subject: '', snippet: '', body: '', bodyHtml: null,
+    date: new Date().toISOString(), unread: false, starred: false,
+  });
+  it('is false when every message is from the sender', () => {
+    expect(hasReply([msg('me@gmail.com')], 'me@gmail.com')).toBe(false);
+  });
+  it('is true when someone else appears in the thread, case-insensitively', () => {
+    expect(hasReply([msg('me@gmail.com'), msg('Ada@CS.Stanford.EDU')], 'me@gmail.com')).toBe(true);
+  });
+});
+
+describe('nextSendDelayMs', () => {
+  it('stays within 45–120 s', () => {
+    expect(nextSendDelayMs(() => 0)).toBe(MIN_GAP_MS);
+    expect(nextSendDelayMs(() => 0.999999)).toBeLessThan(MAX_GAP_MS);
+    expect(nextSendDelayMs(() => 0.5)).toBe(MIN_GAP_MS + (MAX_GAP_MS - MIN_GAP_MS) / 2);
   });
 });
