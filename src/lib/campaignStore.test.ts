@@ -26,6 +26,23 @@ describe('campaignStore', () => {
     expect(list[1].name).toBe('renamed');
     expect(list).toHaveLength(2);
   });
+  it('drops malformed entries without losing the good ones', () => {
+    const good = newCampaign();
+    localStorage.setItem('slip-campaigns', JSON.stringify([good, { id: 'x' }]));
+    expect(loadCampaigns()).toEqual([good]);
+  });
+  it('re-persists a mid-send campaign as paused (write-through)', () => {
+    const c = {
+      ...newCampaign(),
+      state: 'sending' as const,
+      recipients: [{ id: 'r1', fields: { email: 'a@b.co' }, status: 'sending' as const }],
+    };
+    saveCampaigns([c]);
+    loadCampaigns();
+    const stored = JSON.parse(localStorage.getItem('slip-campaigns') ?? '[]');
+    expect(stored[0].state).toBe('paused');
+    expect(stored[0].recipients[0].status).toBe('failed');
+  });
   it('normalizes a campaign that died mid-send: paused, in-flight row marked failed', () => {
     const c = {
       ...newCampaign(),

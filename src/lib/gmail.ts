@@ -327,8 +327,11 @@ export async function fetchProfile(): Promise<Profile> {
 }
 
 // The user's own address, for telling replies apart from their sent mail.
+// Throws rather than returning ''/undefined — an empty self address would
+// make every thread look replied-to.
 export async function fetchSelfEmail(): Promise<string> {
-  const p = await api<{ emailAddress: string }>('/profile');
+  const p = await api<{ emailAddress?: string }>('/profile');
+  if (!p.emailAddress) throw new Error('no-profile-email');
   return p.emailAddress;
 }
 
@@ -348,7 +351,11 @@ export function isRetriableGmailError(status: number, body: unknown): boolean {
 
 const RETRIES = 3;
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+async function api<T>(
+  path: string,
+  init?: RequestInit,
+  retriable: (status: number, body: unknown) => boolean = isRetriableGmailError,
+): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     if (!accessToken) throw new Error('not-connected');
     const res = await fetch(`${BASE}${path}`, {
@@ -365,7 +372,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
     if (res.ok) return res.json() as Promise<T>;
     const body = await res.json().catch(() => null);
-    if (attempt < RETRIES && isRetriableGmailError(res.status, body)) {
+    if (attempt < RETRIES && retriable(res.status, body)) {
       await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 250));
       continue;
     }
@@ -433,11 +440,23 @@ export interface SentRef {
   threadId: string;
 }
 
+// Sends never auto-retry on 5xx: Gmail may have processed the send before
+// failing to respond, so a retry could silently email the person twice.
+// 429 and the 403 rate-limit case mean the request was rejected outright,
+// so those stay retriable.
+function isRetriableSendError(status: number, body: unknown): boolean {
+  return status < 500 && isRetriableGmailError(status, body);
+}
+
 export async function sendEmail(mail: OutgoingMail): Promise<SentRef> {
-  return api<SentRef>('/messages/send', {
-    method: 'POST',
-    body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
-  });
+  return api<SentRef>(
+    '/messages/send',
+    {
+      method: 'POST',
+      body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
+    },
+    isRetriableSendError,
+  );
 }
 
 export async function listDrafts(): Promise<Draft[]> {
