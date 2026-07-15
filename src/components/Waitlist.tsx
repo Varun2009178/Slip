@@ -28,7 +28,9 @@ type Excited = (typeof EXCITED_OPTIONS)[number];
 export default function Waitlist({ onHaveAccess }: Props) {
   const [email, setEmail] = useState('');
   const [excited, setExcited] = useState<Excited | null>(null);
-  const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>(() =>
+  // 'submitted' = joined just now (show the confirmation); 'done' = joined on
+  // an earlier visit (the form becomes sign-in).
+  const [state, setState] = useState<'idle' | 'sending' | 'submitted' | 'done' | 'error'>(() =>
     alreadyJoined() ? 'done' : 'idle',
   );
 
@@ -52,7 +54,7 @@ export default function Waitlist({ onHaveAccess }: Props) {
       } catch {
         // they'll just see the form again next visit
       }
-      setState('done');
+      setState('submitted');
     } catch {
       setState('error');
     }
@@ -66,8 +68,12 @@ export default function Waitlist({ onHaveAccess }: Props) {
           send personalized batches from your own gmail. track and reply without switching tabs.
         </p>
 
-        {state === 'done' ? (
-          // already on the list: same hero + video, the form just becomes sign-in
+        {state === 'submitted' ? (
+          <p className="waitlist-done">
+            submitted! you'll get an email from varun@teyra.app soon.
+          </p>
+        ) : state === 'done' ? (
+          // already on the list: same hero, the form just becomes sign-in
           <button className="send connect-cta" onClick={onHaveAccess}>
             connect with Google
           </button>

@@ -15,8 +15,12 @@ function Privacy() {
       </p>
       <h2>What stays on your device</h2>
       <ul>
-        <li>Your preferences (theme, start screen) in this browser's localStorage.</li>
-        <li>The list of emails you've marked done, in localStorage.</li>
+        <li>Your preferences (theme) in this browser's localStorage.</li>
+        <li>The list of emails you've marked done or snoozed, in localStorage.</li>
+        <li>
+          Your outreach batches — recipient lists, templates, and send/reply status — in
+          localStorage, keyed to the Google account you connected. They never leave this browser.
+        </li>
       </ul>
       <h2>What we collect</h2>
       <p>Nothing. No analytics, no tracking, no cookies of our own.</p>
