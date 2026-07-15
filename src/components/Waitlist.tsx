@@ -42,6 +42,9 @@ export default function Waitlist({ onHaveAccess }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ _subject: 'slip waitlist', email: email.trim(), excited }),
+        // If the form service hangs (it has), fail into the mailto fallback
+        // instead of an eternal "joining…".
+        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) throw new Error('waitlist-failed');
       try {
