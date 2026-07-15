@@ -1307,20 +1307,22 @@ html { scroll-behavior: smooth; }
 
 /* ── Glass landing over the watercolor meadow ─────────────── */
 
-.front { position: relative; z-index: 1; }
+.front { position: relative; z-index: 1; background: #fff; }
+/* The meadow backs only the first screen; everything below scrolls on white. */
 .front-bg {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   background: url('/gemini_generated_bg.jpg') center / cover no-repeat;
 }
 
 .front-hero {
   position: relative;
-  min-height: 88vh;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  overflow: hidden;
 }
 
 .glass-card {
@@ -1333,7 +1335,7 @@ html { scroll-behavior: smooth; }
   padding: 2.8rem 2.6rem;
 }
 
-.hero-sky { width: min(46rem, 100%); padding: 11vh 1.5rem 0; }
+.hero-sky { position: relative; z-index: 1; width: min(46rem, 100%); padding: 11vh 1.5rem 0; }
 .hero-sky .hero-copy { align-items: center; text-align: center; }
 .hero-sky .hero-title {
   font-size: clamp(2rem, 4.6vw, 3.2rem);
@@ -1422,24 +1424,20 @@ html { scroll-behavior: smooth; }
   padding: 0;
 }
 
-/* Sections below the hero float as glass panels over the same backdrop. */
-.front-body { position: relative; padding-bottom: 3rem; }
+/* Below the hero the page is plain white; sections are quiet cards. */
+.front-body { position: relative; padding-bottom: 3rem; background: #fff; }
 .front-body .feature {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 1.8rem;
+  background: #fff;
 }
 .front-body .roadmap {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 2.5rem 2rem 1.5rem;
   margin-top: 4rem;
+  background: #fff;
 }
 
 /* Collapsible mail group: outreach is the product, mail is support. */

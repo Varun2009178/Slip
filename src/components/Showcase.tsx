@@ -1,27 +1,27 @@
 const FEATURES = [
   {
-    img: '/shots/home.png',
-    title: 'keyboard first. actually.',
-    desc: 'sign in and land on keys, not clutter. i opens the inbox, c composes, e makes email disappear; your hands never leave the keyboard.',
+    img: '/shots/outreach-people.png',
+    title: 'paste your list. that’s the whole import.',
+    desc: 'straight from google sheets — names, emails, one hook per person. every column becomes a {{variable}} you can use in the email.',
   },
   {
-    img: '/shots/palette.png',
-    title: '⌘k does anything',
-    desc: 'one shortcut, every action. type three letters, hit enter, done.',
+    img: '/shots/outreach-write.png',
+    title: 'one template. every email personal.',
+    desc: 'write it once with {{name}} and {{paper}}. a typo’d variable gets caught before anything can send.',
   },
   {
-    img: '/shots/inbox.png',
-    title: 'an inbox with nothing extra',
-    desc: 'your 25 newest emails in one flat list. unread glows, starred pins to the top, everything else stays out of your way.',
+    img: '/shots/outreach-preview.png',
+    title: 'preview every single one.',
+    desc: 'read each email exactly as it will land. hand-edit any one of them without touching the rest.',
   },
   {
-    img: '/shots/composer.png',
-    title: 'write like it matters',
-    desc: 'a big, calm composer with real formatting. what you see is exactly what they get. ⌘enter really sends.',
+    img: '/shots/outreach-send.png',
+    title: 'sends drip out. replies light up.',
+    desc: 'one every 1–2 minutes so it never looks like a blast. when someone replies, the row flips — open it and answer without leaving slip.',
   },
 ];
 
-// Real screenshots of the product, under the fold of the front page.
+// Real screenshots of the outreach flow, under the fold of the front page.
 export default function Showcase() {
   return (
     <section className="showcase" id="tour">

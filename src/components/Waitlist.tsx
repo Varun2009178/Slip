@@ -60,7 +60,7 @@ export default function Waitlist({ onHaveAccess }: Props) {
       <div className="hero-copy">
         <h1 className="hero-title">a super fast cold email inbox.</h1>
         <p className="hero-sub">
-          send personalized batches from your own gmail. track and reply — without switching tabs.
+          send personalized batches from your own gmail. track and reply without switching tabs.
         </p>
 
         {state === 'done' ? (

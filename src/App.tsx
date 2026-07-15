@@ -29,6 +29,7 @@ import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/s
 import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
+import DevShots from './components/DevShots';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
@@ -56,7 +57,6 @@ type View =
   | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 
 type Theme = 'default' | 'paper';
-type StartScreen = 'keys' | 'inbox';
 
 const FEATURE_EMAIL = 'varun@teyra.app';
 
@@ -70,7 +70,6 @@ const FADE_MS = 250;
 const TOAST_MS = 5000;
 const ENTER_MS = 1100;
 const THEME_KEY = 'tiny-mail-theme';
-const START_KEY = 'tiny-mail-start';
 const ACCESS_KEY = 'slip-has-access';
 
 // Everyone hits the waitlist until they claim access once on this browser.
@@ -87,14 +86,6 @@ function loadTheme(): Theme {
     return localStorage.getItem(THEME_KEY) === 'paper' ? 'paper' : 'default';
   } catch {
     return 'default';
-  }
-}
-
-function loadStart(): StartScreen {
-  try {
-    return localStorage.getItem(START_KEY) === 'inbox' ? 'inbox' : 'keys';
-  } catch {
-    return 'keys';
   }
 }
 
@@ -132,7 +123,6 @@ export default function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
-  const [start, setStart] = useState<StartScreen>(loadStart);
   const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -277,7 +267,8 @@ export default function App() {
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
-      setView(start === 'inbox' ? { name: 'list' } : { name: 'campaigns' });
+      // Batches are the product — everyone lands there.
+      setView({ name: 'campaigns' });
       fetchSelfEmail().then(setSelfEmail).catch(() => undefined);
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
@@ -295,18 +286,6 @@ export default function App() {
               : `Couldn't connect: ${msg}`,
       );
     }
-  }
-
-  function toggleStart() {
-    setStart((s) => {
-      const next = s === 'keys' ? 'inbox' : 'keys';
-      try {
-        localStorage.setItem(START_KEY, next);
-      } catch {
-        // preference just won't persist
-      }
-      return next;
-    });
   }
 
   function requestFeature() {
@@ -643,6 +622,10 @@ export default function App() {
   if (path === '/privacy' || path === '/tos') {
     return <Legal page={path === '/tos' ? 'tos' : 'privacy'} />;
   }
+  // Dev-only: seeded wizard for capturing landing-page screenshots.
+  if (import.meta.env.DEV && path === '/dev/shots') {
+    return <DevShots />;
+  }
 
   if (emails === null) {
     const claimAccess = () => {
@@ -671,8 +654,8 @@ export default function App() {
             </button>
           </nav>
         </header>
-        <div className="front-bg" aria-hidden="true" />
         <section className="front-hero">
+          <div className="front-bg" aria-hidden="true" />
           <div className="hero-sky">
             <div className="glass-card">
               {gate === 'waitlist' ? (
@@ -684,7 +667,10 @@ export default function App() {
           </div>
         </section>
         <div className="video-stage">
-          <video className="video-card" src="/slip_email.mp4" autoPlay muted loop playsInline />
+          {/* Until the outreach demo video is recorded, the billboard shows the
+              live tracking view. (Restore: <video className="video-card"
+              src="/slip_email.mp4" autoPlay muted loop playsInline />) */}
+          <img className="video-card" src="/shots/outreach-send.png" alt="a batch mid-send: replies lighting up" />
         </div>
         <div className="front-body">
           <Showcase />
@@ -739,11 +725,6 @@ export default function App() {
     { id: 'refresh', label: 'refresh inbox', run: refresh },
     { id: 'feature', label: 'request a feature', run: requestFeature },
     {
-      id: 'start',
-      label: start === 'keys' ? 'start in inbox after connecting' : 'start in outreach after connecting',
-      run: toggleStart,
-    },
-    {
       id: 'theme',
       label: theme === 'paper' ? 'switch to plain theme' : 'switch to paper theme',
       run: () => setTheme((t) => (t === 'paper' ? 'default' : 'paper')),
@@ -763,14 +744,12 @@ export default function App() {
         draftsCount={drafts?.length ?? null}
         profile={profile}
         theme={theme}
-        start={start}
         outreachActive={view.name === 'campaigns' || view.name === 'campaign' || view.name === 'thread'}
         onNavigate={navigate}
         onCompose={() => setView({ name: 'composing' })}
         onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
-        onToggleStart={toggleStart}
         onRequestFeature={requestFeature}
-        onHome={() => setView({ name: 'home' })}
+        onHome={() => setView({ name: 'campaigns' })}
         onOutreach={() => setView({ name: 'campaigns' })}
       />
       <main className="pane">

@@ -18,12 +18,10 @@ interface Props {
   draftsCount: number | null;
   profile: Profile | null;
   theme: 'default' | 'paper';
-  start: 'keys' | 'inbox';
   outreachActive: boolean;
   onNavigate: (section: Section) => void;
   onCompose: () => void;
   onToggleTheme: () => void;
-  onToggleStart: () => void;
   onRequestFeature: () => void;
   onHome: () => void;
   onOutreach: () => void;
@@ -43,12 +41,10 @@ export default function Sidebar({
   draftsCount,
   profile,
   theme,
-  start,
   outreachActive,
   onNavigate,
   onCompose,
   onToggleTheme,
-  onToggleStart,
   onRequestFeature,
   onHome,
   onOutreach,
@@ -118,14 +114,6 @@ export default function Sidebar({
         <button className="nav-item" onClick={onRequestFeature} title="Emails your idea straight to the maker">
           <span className="theme-dot">✦</span>
           Request a feature
-        </button>
-        <button
-          className="nav-item"
-          onClick={onToggleStart}
-          title="What you land on right after connecting"
-        >
-          <span className="theme-dot">{start === 'keys' ? '⌘' : '✉'}</span>
-          Start: {start === 'keys' ? 'outreach' : 'inbox'}
         </button>
         <button
           className="nav-item"

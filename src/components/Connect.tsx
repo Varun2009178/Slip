@@ -31,7 +31,7 @@ export default function Connect({ error, onConnect }: Props) {
       <div className="hero-copy">
         <h1 className="hero-title">a super fast cold email inbox.</h1>
         <p className="hero-sub">
-          send personalized batches from your own gmail. track and reply — without switching tabs.
+          send personalized batches from your own gmail. track and reply without switching tabs.
         </p>
         <p className="connect-mobile">100,000x better on a computer.</p>
         <button className="send connect-cta" onClick={onConnect}>
