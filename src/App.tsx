@@ -683,13 +683,11 @@ export default function App() {
         <section className="front-hero">
           <div className="front-bg" aria-hidden="true" />
           <div className="hero-sky">
-            <div className="glass-card">
-              {gate === 'waitlist' ? (
-                <Waitlist onHaveAccess={claimAccess} />
-              ) : (
-                <Connect error={connectError} onConnect={handleConnect} />
-              )}
-            </div>
+            {gate === 'waitlist' ? (
+              <Waitlist onHaveAccess={claimAccess} />
+            ) : (
+              <Connect error={connectError} onConnect={handleConnect} />
+            )}
           </div>
           <div className="hero-demo">
             <video
