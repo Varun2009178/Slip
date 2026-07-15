@@ -20,7 +20,13 @@ import {
   type Profile,
 } from './lib/gmail';
 import { newCampaign, type Campaign } from './lib/outreach';
-import { loadCampaigns, saveCampaigns, upsertCampaign } from './lib/campaignStore';
+import {
+  loadCampaigns,
+  removeCampaign,
+  saveCampaigns,
+  setCampaignAccount,
+  upsertCampaign,
+} from './lib/campaignStore';
 import { useCampaignSender } from './hooks/useCampaignSender';
 import Campaigns from './components/Campaigns';
 import CampaignWizard, { type WizardStep } from './components/CampaignWizard';
@@ -126,7 +132,8 @@ export default function App() {
   const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(loadCampaigns);
+  // Batches load once we know whose they are (account-scoped storage).
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selfEmail, setSelfEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -212,6 +219,14 @@ export default function App() {
     });
   }
 
+  function deleteCampaign(id: string) {
+    setCampaigns((prev) => {
+      const next = removeCampaign(prev, id);
+      saveCampaigns(next);
+      return next;
+    });
+  }
+
   const sendingActive = campaigns.some((c) => c.state === 'sending');
 
   useCampaignSender({
@@ -267,9 +282,19 @@ export default function App() {
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
-      // Batches are the product — everyone lands there.
+      // Batches are the product — everyone lands there, seeing their own.
       setView({ name: 'campaigns' });
-      fetchSelfEmail().then(setSelfEmail).catch(() => undefined);
+      fetchSelfEmail()
+        .then((email) => {
+          setSelfEmail(email);
+          setCampaignAccount(email);
+          setCampaigns(loadCampaigns());
+        })
+        .catch(() => {
+          // No address: reply tracking stays off, batches use the shared key.
+          setCampaignAccount(null);
+          setCampaigns(loadCampaigns());
+        });
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
@@ -665,6 +690,9 @@ export default function App() {
               )}
             </div>
           </div>
+          <a className="scroll-hint" href="#tour">
+            ↓ see how it works
+          </a>
         </section>
         <div className="video-stage">
           {/* Until the outreach demo video is recorded, the billboard shows the
@@ -766,6 +794,7 @@ export default function App() {
               updateCampaign(c);
               setView({ name: 'campaign', id: c.id, step: 'people' });
             }}
+            onDelete={deleteCampaign}
           />
         )}
         {view.name === 'campaign' &&

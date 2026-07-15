@@ -989,8 +989,10 @@ html { scroll-behavior: smooth; }
 /* ── Front nav + hero (waitlist) ───────── */
 
 .front-nav {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -1360,7 +1362,7 @@ html { scroll-behavior: smooth; }
   position: relative;
   z-index: 1;
   max-width: 54rem;
-  margin: -5vh auto 0;
+  margin: 3.5rem auto 0;
   padding: 0 1.5rem;
 }
 .video-card {
@@ -1378,10 +1380,9 @@ html { scroll-behavior: smooth; }
 }
 
 @media (max-width: 700px) {
-  .front-hero { min-height: 82vh; }
-  .hero-sky { padding-top: 6vh; }
+  .hero-sky { padding-top: 5vh; }
   .glass-card { padding: 1.8rem 1.2rem; }
-  .video-stage { margin-top: -3vh; }
+  .video-stage { margin-top: 2.5rem; }
 }
 
 /* Empty people table: make the two ways in (paste / type) unmissable. */
@@ -1454,3 +1455,45 @@ html { scroll-behavior: smooth; }
 }
 .side-fold:hover { color: var(--text); }
 .fold-caret { font-size: 0.6rem; }
+
+/* Smooth trip down the page from the hero arrow. */
+html { scroll-behavior: smooth; }
+.front-hero .scroll-hint {
+  z-index: 1;
+  bottom: 2rem;
+  /* `translate` survives fade-up's animated `transform` (which would
+     otherwise clobber the base translateX(-50%) centering). */
+  transform: none;
+  translate: -50% 0;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  padding: 0.45rem 1.1rem;
+  color: var(--text);
+}
+
+/* Batch rows: open is the row, delete appears on hover. */
+.campaign-li { display: flex; align-items: center; gap: 2px; }
+.campaign-li .campaign-row { flex: 1; min-width: 0; }
+.campaign-x {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 1.05rem;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+}
+.campaign-li:hover .campaign-x, .campaign-x:focus-visible { opacity: 1; }
+.campaign-x:hover { background: var(--hover); color: #c0392b; }
+@media (hover: none) {
+  .campaign-x { opacity: 1; } /* phones have no hover — keep it visible */
+}
+
+/* The people table can scroll sideways on small screens. */
+.people { overflow-x: auto; }
+.people .sheet { min-width: 560px; }

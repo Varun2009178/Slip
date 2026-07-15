@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { newCampaign } from './outreach';
-import { loadCampaigns, saveCampaigns, upsertCampaign } from './campaignStore';
+import {
+  loadCampaigns,
+  removeCampaign,
+  saveCampaigns,
+  setCampaignAccount,
+  upsertCampaign,
+} from './campaignStore';
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  setCampaignAccount(null);
+});
 
 describe('campaignStore', () => {
   it('round-trips campaigns', () => {
@@ -42,6 +51,31 @@ describe('campaignStore', () => {
     const stored = JSON.parse(localStorage.getItem('slip-campaigns') ?? '[]');
     expect(stored[0].state).toBe('paused');
     expect(stored[0].recipients[0].status).toBe('failed');
+  });
+  it('keeps each account’s batches separate', () => {
+    const mine = newCampaign();
+    setCampaignAccount('Me@Gmail.com');
+    saveCampaigns([mine]);
+    setCampaignAccount('other@gmail.com');
+    expect(loadCampaigns()).toEqual([]);
+    setCampaignAccount('me@gmail.com'); // case-insensitive: same account
+    expect(loadCampaigns()).toEqual([mine]);
+  });
+  it('migrates legacy unscoped batches to the first account that connects', () => {
+    const legacy = newCampaign();
+    saveCampaigns([legacy]); // account null → legacy key
+    setCampaignAccount('me@gmail.com');
+    expect(loadCampaigns()).toEqual([legacy]);
+    expect(localStorage.getItem('slip-campaigns')).toBeNull();
+    // a second account does NOT inherit them
+    setCampaignAccount('other@gmail.com');
+    expect(loadCampaigns()).toEqual([]);
+  });
+  it('removeCampaign drops only the matching id', () => {
+    const a = newCampaign();
+    const b = newCampaign();
+    expect(removeCampaign([a, b], a.id)).toEqual([b]);
+    expect(removeCampaign([a, b], 'nope')).toEqual([a, b]);
   });
   it('normalizes a campaign that died mid-send: paused, in-flight row marked failed', () => {
     const c = {

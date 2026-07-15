@@ -4,6 +4,7 @@ interface Props {
   campaigns: Campaign[];
   onOpen: (id: string) => void;
   onNew: () => void;
+  onDelete: (id: string) => void;
 }
 
 const STATE_LABEL: Record<Campaign['state'], string> = {
@@ -13,7 +14,7 @@ const STATE_LABEL: Record<Campaign['state'], string> = {
   done: 'sent',
 };
 
-export default function Campaigns({ campaigns, onOpen, onNew }: Props) {
+export default function Campaigns({ campaigns, onOpen, onNew, onDelete }: Props) {
   return (
     <div className="campaigns">
       <div className="campaigns-head">
@@ -33,13 +34,24 @@ export default function Campaigns({ campaigns, onOpen, onNew }: Props) {
             const sent = c.recipients.filter((r) => r.status === 'sent' || r.status === 'replied');
             const replied = c.recipients.filter((r) => r.status === 'replied');
             return (
-              <li key={c.id}>
+              <li key={c.id} className="campaign-li">
                 <button className="campaign-row" onClick={() => onOpen(c.id)}>
                   <span className="campaign-name">{c.name}</span>
                   <span className={`campaign-state is-${c.state}`}>{STATE_LABEL[c.state]}</span>
                   <span className="campaign-stats">
                     {sent.length}/{c.recipients.length} sent · {replied.length} replied
                   </span>
+                </button>
+                <button
+                  className="campaign-x"
+                  title="delete batch"
+                  onClick={() => {
+                    if (window.confirm(`delete "${c.name}"? emails already sent stay sent.`)) {
+                      onDelete(c.id);
+                    }
+                  }}
+                >
+                  ×
                 </button>
               </li>
             );

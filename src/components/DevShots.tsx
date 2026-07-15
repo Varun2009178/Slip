@@ -5,7 +5,12 @@
 
 import { useState } from 'react';
 import CampaignWizard, { type WizardStep } from './CampaignWizard';
+import Inbox from './Inbox';
+import Sidebar from './Sidebar';
 import { applyPaste, newCampaign, type Campaign } from '../lib/outreach';
+import type { Email } from '../lib/types';
+
+type ShotStep = WizardStep | 'inbox';
 
 const LIST =
   'name\temail\tpaper\n' +
@@ -64,9 +69,73 @@ function seeded(step: WizardStep): Campaign {
   return c;
 }
 
+const reply = (
+  id: string,
+  from: string,
+  fromEmail: string,
+  subject: string,
+  snippet: string,
+  minsAgo: number,
+  unread: boolean,
+): Email => ({
+  id,
+  threadId: `t-${id}`,
+  rfcMessageId: '',
+  from,
+  fromEmail,
+  subject,
+  snippet,
+  body: snippet,
+  bodyHtml: null,
+  date: new Date(Date.now() - minsAgo * 60_000).toISOString(),
+  unread,
+  starred: false,
+});
+
+const REPLIES: Email[] = [
+  reply('1', 'Dr. Chen', 'chen@cs.stanford.edu', 'Re: quick question about Scaling Laws for Sparse Models', 'happy to answer — section 4 took us three months to get right. send the questions over, or grab 15 min on my calendar.', 12, true),
+  reply('2', 'Prof. Okafor', 'okafor@mit.edu', 'Re: your talk at pldi (and one question)', 'ha, the live demo nearly fell over backstage. yes — ask away.', 47, true),
+  reply('3', 'Dr. Ruiz', 'ruiz@berkeley.edu', 'Re: quick question about Evals Without Human Labels', 'good timing, we just pushed the follow-up preprint. what are you building?', 180, false),
+  reply('4', 'Prof. Adler', 'adler@cmu.edu', 'Re: quick question about Byzantine Consensus at Scale', 'cc-ing my postdoc who owns that line of work now.', 300, false),
+];
+
 export default function DevShots() {
-  const step = (new URLSearchParams(window.location.search).get('step') ?? 'people') as WizardStep;
-  const [campaign, setCampaign] = useState(() => seeded(step));
+  const step = (new URLSearchParams(window.location.search).get('step') ?? 'people') as ShotStep;
+  const [campaign, setCampaign] = useState(() => seeded(step === 'inbox' ? 'people' : step));
+  if (step === 'inbox') {
+    return (
+      <div className="shell">
+        <Sidebar
+          section="inbox"
+          inboxCount={REPLIES.length}
+          draftsCount={null}
+          profile={{ name: 'Varun', picture: null }}
+          theme="default"
+          outreachActive={false}
+          onNavigate={() => undefined}
+          onCompose={() => undefined}
+          onToggleTheme={() => undefined}
+          onRequestFeature={() => undefined}
+          onHome={() => undefined}
+          onOutreach={() => undefined}
+        />
+        <main className="pane">
+          <Inbox
+            mode="inbox"
+            emails={REPLIES}
+            selectedId={REPLIES[0].id}
+            fadingIds={[]}
+            loading={false}
+            onOpen={() => undefined}
+            onSelect={() => undefined}
+            onRefresh={() => undefined}
+            onOpenPalette={() => undefined}
+            onForceReply={() => undefined}
+          />
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="shell">
       <main className="pane">

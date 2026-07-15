@@ -3,7 +3,14 @@
 
 import type { Campaign } from './outreach';
 
-const KEY = 'slip-campaigns';
+// Batches belong to a Google account, not to the browser: the storage key is
+// scoped by the connected address so switching accounts switches batches.
+const LEGACY_KEY = 'slip-campaigns';
+let KEY = LEGACY_KEY;
+
+export function setCampaignAccount(email: string | null): void {
+  KEY = email ? `slip-campaigns:${email.trim().toLowerCase()}` : LEGACY_KEY;
+}
 
 // A campaign loaded while still 'sending' means the tab died mid-run. It
 // comes back paused. A recipient stuck at 'sending' is ambiguous — the send
@@ -40,7 +47,17 @@ function isCampaign(c: unknown): c is Campaign {
 
 export function loadCampaigns(): Campaign[] {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    let raw = localStorage.getItem(KEY);
+    // One-time migration: batches saved before account scoping live under the
+    // legacy key and belong to whichever account connects first.
+    if (raw === null && KEY !== LEGACY_KEY) {
+      raw = localStorage.getItem(LEGACY_KEY);
+      if (raw !== null) {
+        localStorage.setItem(KEY, raw);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+    }
+    const parsed: unknown = JSON.parse(raw ?? '[]');
     if (!Array.isArray(parsed)) return [];
     const kept = parsed.filter(isCampaign);
     const list = normalize(kept);
@@ -70,4 +87,8 @@ export function upsertCampaign(list: Campaign[], c: Campaign): Campaign[] {
   return list.some((x) => x.id === c.id)
     ? list.map((x) => (x.id === c.id ? c : x))
     : [c, ...list];
+}
+
+export function removeCampaign(list: Campaign[], id: string): Campaign[] {
+  return list.filter((c) => c.id !== id);
 }

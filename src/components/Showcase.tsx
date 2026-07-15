@@ -19,6 +19,11 @@ const FEATURES = [
     title: 'sends drip out. replies light up.',
     desc: 'one every 1–2 minutes so it never looks like a blast. when someone replies, the row flips — open it and answer without leaving slip.',
   },
+  {
+    img: '/shots/outreach-inbox.png',
+    title: 'a tiny inbox for the replies.',
+    desc: 'the minimal mail client is still here, one fold away. read the reply, hit r, keep the thread moving — your hands never leave the keyboard.',
+  },
 ];
 
 // Real screenshots of the outreach flow, under the fold of the front page.
