@@ -241,28 +241,15 @@ export function toBase64Url(ascii: string): string {
 
 // ── Auth (Google Identity Services) ────────────────────────
 
-const CLIENT_ID_KEY = 'tiny-mail-client-id';
 const SCOPES =
   'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.profile';
 
 let accessToken: string | null = null;
 
-// A build-time client ID (set VITE_GOOGLE_CLIENT_ID when deploying) skips the
-// paste-in setup entirely; a locally saved one still wins so it can be overridden.
+// One shared OAuth client for everyone, baked in at build time
+// (set VITE_GOOGLE_CLIENT_ID when deploying).
 export function getClientId(): string | null {
-  try {
-    return localStorage.getItem(CLIENT_ID_KEY) ?? import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
-  } catch {
-    return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
-  }
-}
-
-export function setClientId(id: string): void {
-  try {
-    localStorage.setItem(CLIENT_ID_KEY, id);
-  } catch {
-    // ignore — id just won't persist
-  }
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID ?? null;
 }
 
 interface TokenResponse {
@@ -339,6 +326,15 @@ export async function fetchProfile(): Promise<Profile> {
   return { name: d.given_name ?? d.name ?? '', picture: d.picture ?? null };
 }
 
+// The user's own address, for telling replies apart from their sent mail.
+// Throws rather than returning ''/undefined — an empty self address would
+// make every thread look replied-to.
+export async function fetchSelfEmail(): Promise<string> {
+  const p = await api<{ emailAddress?: string }>('/profile');
+  if (!p.emailAddress) throw new Error('no-profile-email');
+  return p.emailAddress;
+}
+
 // ── API calls ──────────────────────────────────────────────
 
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -355,7 +351,11 @@ export function isRetriableGmailError(status: number, body: unknown): boolean {
 
 const RETRIES = 3;
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+async function api<T>(
+  path: string,
+  init?: RequestInit,
+  retriable: (status: number, body: unknown) => boolean = isRetriableGmailError,
+): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     if (!accessToken) throw new Error('not-connected');
     const res = await fetch(`${BASE}${path}`, {
@@ -372,7 +372,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
     if (res.ok) return res.json() as Promise<T>;
     const body = await res.json().catch(() => null);
-    if (attempt < RETRIES && isRetriableGmailError(res.status, body)) {
+    if (attempt < RETRIES && retriable(res.status, body)) {
       await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 250));
       continue;
     }
@@ -435,11 +435,28 @@ export async function fetchMessage(id: string): Promise<Email> {
   return parseMessage(await api<GmailMessage>(`/messages/${id}?format=full`));
 }
 
-export async function sendEmail(mail: OutgoingMail): Promise<void> {
-  await api('/messages/send', {
-    method: 'POST',
-    body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
-  });
+export interface SentRef {
+  id: string;
+  threadId: string;
+}
+
+// Sends never auto-retry on 5xx: Gmail may have processed the send before
+// failing to respond, so a retry could silently email the person twice.
+// 429 and the 403 rate-limit case mean the request was rejected outright,
+// so those stay retriable.
+function isRetriableSendError(status: number, body: unknown): boolean {
+  return status < 500 && isRetriableGmailError(status, body);
+}
+
+export async function sendEmail(mail: OutgoingMail): Promise<SentRef> {
+  return api<SentRef>(
+    '/messages/send',
+    {
+      method: 'POST',
+      body: JSON.stringify({ raw: toBase64Url(buildMime(mail)), threadId: mail.threadId }),
+    },
+    isRetriableSendError,
+  );
 }
 
 export async function listDrafts(): Promise<Draft[]> {

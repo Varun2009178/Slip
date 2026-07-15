@@ -42,6 +42,9 @@ export default function Waitlist({ onHaveAccess }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ _subject: 'slip waitlist', email: email.trim(), excited }),
+        // If the form service hangs (it has), fail into the mailto fallback
+        // instead of an eternal "joining…".
+        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) throw new Error('waitlist-failed');
       try {
@@ -58,9 +61,9 @@ export default function Waitlist({ onHaveAccess }: Props) {
   return (
     <div className="hero-wrap waitlist">
       <div className="hero-copy">
-        <h1 className="hero-title">email at the speed of thought.</h1>
+        <h1 className="hero-title">a super fast cold email inbox.</h1>
         <p className="hero-sub">
-          slip is the most minimal email on the web, built for busy founders tired of gmail.
+          send personalized batches from your own gmail. track and reply without switching tabs.
         </p>
 
         {state === 'done' ? (
@@ -106,8 +109,6 @@ export default function Waitlist({ onHaveAccess }: Props) {
           </>
         )}
       </div>
-
-      <video className="hero-video" src="/slip_email.mp4" autoPlay muted loop playsInline />
     </div>
   );
 }

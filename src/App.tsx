@@ -7,6 +7,7 @@ import {
   fetchInbox,
   fetchMessage,
   fetchProfile,
+  fetchSelfEmail,
   fetchSent,
   fetchThread,
   listDrafts,
@@ -18,11 +19,23 @@ import {
   type OutgoingMail,
   type Profile,
 } from './lib/gmail';
+import { newCampaign, type Campaign } from './lib/outreach';
+import {
+  loadCampaigns,
+  removeCampaign,
+  saveCampaigns,
+  setCampaignAccount,
+  upsertCampaign,
+} from './lib/campaignStore';
+import { useCampaignSender } from './hooks/useCampaignSender';
+import Campaigns from './components/Campaigns';
+import CampaignWizard, { type WizardStep } from './components/CampaignWizard';
 import { addDoneId, loadDoneIds, removeDoneId } from './lib/done';
 import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/snooze';
 import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
+import DevShots from './components/DevShots';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
@@ -44,10 +57,12 @@ type View =
   | { name: 'list' }
   | { name: 'reading'; id: string }
   | { name: 'force' }
+  | { name: 'campaigns' }
+  | { name: 'campaign'; id: string; step: WizardStep }
+  | { name: 'thread'; email: Email; campaignId: string } // a reply opened from the tracking view
   | { name: 'composing'; replyTo?: Email; draft?: Draft; prefill?: Prefill };
 
 type Theme = 'default' | 'paper';
-type StartScreen = 'keys' | 'inbox';
 
 const FEATURE_EMAIL = 'varun@teyra.app';
 
@@ -61,7 +76,6 @@ const FADE_MS = 250;
 const TOAST_MS = 5000;
 const ENTER_MS = 1100;
 const THEME_KEY = 'tiny-mail-theme';
-const START_KEY = 'tiny-mail-start';
 const ACCESS_KEY = 'slip-has-access';
 
 // Everyone hits the waitlist until they claim access once on this browser.
@@ -78,14 +92,6 @@ function loadTheme(): Theme {
     return localStorage.getItem(THEME_KEY) === 'paper' ? 'paper' : 'default';
   } catch {
     return 'default';
-  }
-}
-
-function loadStart(): StartScreen {
-  try {
-    return localStorage.getItem(START_KEY) === 'inbox' ? 'inbox' : 'keys';
-  } catch {
-    return 'keys';
   }
 }
 
@@ -123,10 +129,12 @@ export default function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
-  const [start, setStart] = useState<StartScreen>(loadStart);
   const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Batches load once we know whose they are (account-scoped storage).
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [selfEmail, setSelfEmail] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -186,6 +194,85 @@ export default function App() {
     }
   }
 
+  function updateCampaign(c: Campaign) {
+    setCampaigns((prev) => {
+      const next = upsertCampaign(prev, c);
+      if (!saveCampaigns(next)) {
+        setToast({ text: "storage is blocked — this batch won't survive a refresh" });
+      }
+      return next;
+    });
+  }
+
+  // Functional variant for async producers (reply poll): folds over React's
+  // authoritative previous state, so a write computed from a render-lagged
+  // snapshot can never revert a concurrent send-loop update.
+  function updateCampaignBy(id: string, fn: (prev: Campaign) => Campaign) {
+    setCampaigns((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (!target) return prev;
+      const next = upsertCampaign(prev, fn(target));
+      if (!saveCampaigns(next)) {
+        setToast({ text: "storage is blocked — this batch won't survive a refresh" });
+      }
+      return next;
+    });
+  }
+
+  function deleteCampaign(id: string) {
+    setCampaigns((prev) => {
+      const next = removeCampaign(prev, id);
+      saveCampaigns(next);
+      return next;
+    });
+  }
+
+  const sendingActive = campaigns.some((c) => c.state === 'sending');
+
+  useCampaignSender({
+    campaigns,
+    update: updateCampaign,
+    onAuthExpired: (paused) =>
+      setToast({
+        text: 'gmail session expired — the batch is paused',
+        actionLabel: 'reconnect & resume',
+        onAction: () => {
+          setToast(null);
+          connect()
+            // Functional resume — edits made while the toast sat open must survive.
+            .then(() => updateCampaignBy(paused.id, (prev) => ({ ...prev, state: 'sending' })))
+            .catch(() => setToast({ text: "couldn't reconnect — try again from the batch page" }));
+        },
+      }),
+  });
+
+  // "reply without switching tabs": a replied row opens the actual reply in
+  // Slip's reader, one click from the composer.
+  async function openOutreachReply(campaignId: string, threadId: string) {
+    try {
+      const msgs = await fetchThread(threadId);
+      const reply =
+        [...msgs]
+          .reverse()
+          .find((m) => selfEmail && m.fromEmail.toLowerCase() !== selfEmail.toLowerCase()) ??
+        msgs[msgs.length - 1];
+      setThread(msgs.filter((m) => m.id !== reply.id));
+      setView({ name: 'thread', email: reply, campaignId });
+    } catch {
+      setToast({ text: "couldn't open the reply — try your inbox" });
+    }
+  }
+
+  // Leaving the page kills the send loop; warn while a batch is going out.
+  useEffect(() => {
+    if (!sendingActive) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [sendingActive]);
+
   async function handleConnect() {
     setConnectError(null);
     try {
@@ -195,7 +282,19 @@ export default function App() {
       const inbox = await fetchInbox();
       setEntering(true);
       setEmails(inbox);
-      setView(start === 'keys' ? { name: 'home' } : { name: 'list' });
+      // Batches are the product — everyone lands there, seeing their own.
+      setView({ name: 'campaigns' });
+      fetchSelfEmail()
+        .then((email) => {
+          setSelfEmail(email);
+          setCampaignAccount(email);
+          setCampaigns(loadCampaigns());
+        })
+        .catch(() => {
+          // No address: reply tracking stays off, batches use the shared key.
+          setCampaignAccount(null);
+          setCampaigns(loadCampaigns());
+        });
       window.setTimeout(() => setEntering(false), ENTER_MS);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
@@ -205,23 +304,13 @@ export default function App() {
       setConnectError(
         /access_denied|popup_closed|gmail-429|gmail-403/i.test(msg)
           ? DENIED_ERROR
-          : msg === 'auth-failed' || msg === 'missing-client-id'
-            ? "Couldn't connect — check the Client ID and that you're a test user"
-            : `Couldn't connect: ${msg}`,
+          : msg === 'auth-failed'
+            ? "Couldn't connect — try again in a moment"
+            : msg === 'missing-client-id'
+              ? "Couldn't connect — the app is missing its Google client ID (set VITE_GOOGLE_CLIENT_ID)"
+              : `Couldn't connect: ${msg}`,
       );
     }
-  }
-
-  function toggleStart() {
-    setStart((s) => {
-      const next = s === 'keys' ? 'inbox' : 'keys';
-      try {
-        localStorage.setItem(START_KEY, next);
-      } catch {
-        // preference just won't persist
-      }
-      return next;
-    });
   }
 
   function requestFeature() {
@@ -558,6 +647,10 @@ export default function App() {
   if (path === '/privacy' || path === '/tos') {
     return <Legal page={path === '/tos' ? 'tos' : 'privacy'} />;
   }
+  // Dev-only: seeded wizard for capturing landing-page screenshots.
+  if (import.meta.env.DEV && path === '/dev/shots') {
+    return <DevShots />;
+  }
 
   if (emails === null) {
     const claimAccess = () => {
@@ -586,20 +679,34 @@ export default function App() {
             </button>
           </nav>
         </header>
-        {gate === 'waitlist' ? (
-          <div className="hero-page">
-            <Waitlist onHaveAccess={claimAccess} />
+        {/* Cursor-style hero: compact copy top-left, the demo video is the page. */}
+        <section className="front-hero">
+          <div className="front-bg" aria-hidden="true" />
+          <div className="hero-sky">
+            {gate === 'waitlist' ? (
+              <Waitlist onHaveAccess={claimAccess} />
+            ) : (
+              <Connect error={connectError} onConnect={handleConnect} />
+            )}
           </div>
-        ) : (
-          <div className="app">
-            <Connect error={connectError} onConnect={handleConnect} />
-            <a className="scroll-hint" href="#tour">
-              ↓ see what’s inside
-            </a>
+          <div className="hero-demo">
+            <video
+              className="video-card"
+              src="/slip_cold_emailing_demo.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
           </div>
-        )}
-        <Showcase />
-        <Roadmap />
+          <a className="scroll-hint" href="#tour">
+            ↓ see how it works
+          </a>
+        </section>
+        <div className="front-body">
+          <Showcase />
+          <Roadmap />
+        </div>
       </div>
     );
   }
@@ -634,6 +741,9 @@ export default function App() {
     commands.push({ id: 'force', label: 'force reply mode', keys: 'Z', run: () => setView({ name: 'force' }) });
   }
   commands.push({ id: 'compose', label: 'compose', keys: 'C', run: () => setView({ name: 'composing' }) });
+  if (view.name !== 'campaigns') {
+    commands.push({ id: 'go-outreach', label: 'go to outreach', run: () => setView({ name: 'campaigns' }) });
+  }
   if (section !== 'inbox') commands.push({ id: 'go-inbox', label: 'go to inbox', run: () => navigate('inbox') });
   if (section !== 'read') commands.push({ id: 'go-read', label: 'go to read', run: () => navigate('read') });
   if (section !== 'snoozed') commands.push({ id: 'go-snoozed', label: 'go to snoozed', run: () => navigate('snoozed') });
@@ -645,11 +755,6 @@ export default function App() {
   commands.push(
     { id: 'refresh', label: 'refresh inbox', run: refresh },
     { id: 'feature', label: 'request a feature', run: requestFeature },
-    {
-      id: 'start',
-      label: start === 'keys' ? 'start in inbox after connecting' : 'start with the key screen',
-      run: toggleStart,
-    },
     {
       id: 'theme',
       label: theme === 'paper' ? 'switch to plain theme' : 'switch to paper theme',
@@ -670,15 +775,59 @@ export default function App() {
         draftsCount={drafts?.length ?? null}
         profile={profile}
         theme={theme}
-        start={start}
+        outreachActive={view.name === 'campaigns' || view.name === 'campaign' || view.name === 'thread'}
         onNavigate={navigate}
         onCompose={() => setView({ name: 'composing' })}
         onToggleTheme={() => setTheme((t) => (t === 'paper' ? 'default' : 'paper'))}
-        onToggleStart={toggleStart}
         onRequestFeature={requestFeature}
-        onHome={() => setView({ name: 'home' })}
+        onHome={() => setView({ name: 'campaigns' })}
+        onOutreach={() => setView({ name: 'campaigns' })}
       />
       <main className="pane">
+        {view.name === 'campaigns' && (
+          <Campaigns
+            campaigns={campaigns}
+            onOpen={(id) => {
+              const c = campaigns.find((x) => x.id === id);
+              const step: WizardStep = c && c.state !== 'draft' ? 'send' : 'people';
+              setView({ name: 'campaign', id, step });
+            }}
+            onNew={() => {
+              const c = newCampaign();
+              updateCampaign(c);
+              setView({ name: 'campaign', id: c.id, step: 'people' });
+            }}
+            onDelete={deleteCampaign}
+          />
+        )}
+        {view.name === 'campaign' &&
+          (() => {
+            const c = campaigns.find((x) => x.id === view.id);
+            if (!c) return null;
+            return (
+              <CampaignWizard
+                campaign={c}
+                step={view.step}
+                selfEmail={selfEmail}
+                onChange={updateCampaign}
+                onStep={(step) => setView({ name: 'campaign', id: view.id, step })}
+                onExit={() => setView({ name: 'campaigns' })}
+                onChangeBy={(fn) => updateCampaignBy(view.id, fn)}
+                onOpenReply={(threadId) => openOutreachReply(view.id, threadId)}
+              />
+            );
+          })()}
+        {view.name === 'thread' && (
+          <Reader
+            email={view.email}
+            earlier={thread}
+            fading={false}
+            doneLabel={undefined}
+            onBack={() => setView({ name: 'campaign', id: view.campaignId, step: 'send' })}
+            onDone={() => undefined}
+            onReply={() => setView({ name: 'composing', replyTo: view.email })}
+          />
+        )}
         {view.name === 'home' && (
           <Home
             onNavigate={navigate}
