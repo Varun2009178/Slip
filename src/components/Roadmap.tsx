@@ -1,5 +1,3 @@
-import { MeadowStrip } from './FrontScene';
-
 const ITEMS: { title: string; desc: string; status: 'soon' | 'planned' }[] = [
   {
     title: 'follow up nudges',
@@ -40,7 +38,6 @@ export default function Roadmap() {
           </li>
         ))}
       </ol>
-      <MeadowStrip />
       <footer className="front-foot">
         <a href="/privacy">privacy</a>
         <span>·</span>

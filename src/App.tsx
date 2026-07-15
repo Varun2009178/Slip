@@ -29,7 +29,6 @@ import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/s
 import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
-import FrontScene, { MeadowSprig } from './components/FrontScene';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
@@ -672,24 +671,22 @@ export default function App() {
             </button>
           </nav>
         </header>
+        <div className="front-bg" aria-hidden="true" />
         <section className="front-hero">
-          <FrontScene />
           <div className="hero-sky">
-            {gate === 'waitlist' ? (
-              <Waitlist onHaveAccess={claimAccess} />
-            ) : (
-              <Connect error={connectError} onConnect={handleConnect} />
-            )}
+            <div className="glass-card">
+              {gate === 'waitlist' ? (
+                <Waitlist onHaveAccess={claimAccess} />
+              ) : (
+                <Connect error={connectError} onConnect={handleConnect} />
+              )}
+            </div>
           </div>
         </section>
         <div className="video-stage">
           <video className="video-card" src="/slip_email.mp4" autoPlay muted loop playsInline />
         </div>
         <div className="front-body">
-          <span className="sprig l1"><MeadowSprig /></span>
-          <span className="sprig r1"><MeadowSprig flip /></span>
-          <span className="sprig l2"><MeadowSprig flip /></span>
-          <span className="sprig r2"><MeadowSprig /></span>
           <Showcase />
           <Roadmap />
         </div>
