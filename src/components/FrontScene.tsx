@@ -23,13 +23,25 @@ function Cloud({ x, y, s, dur }: { x: number; y: number; s: number; dur: number 
   );
 }
 
-function Tree({ x, y, s = 1, twin = false }: { x: number; y: number; s?: number; twin?: boolean }) {
+// A "real" tree: forked trunk whose branch tips vanish into a lumpy canopy
+// (canopy is drawn after the trunk, so its white fill swallows the branch ends).
+const CANOPY =
+  'M-32 -46 C -40 -60 -28 -72 -16 -70 C -12 -82 6 -84 14 -74 C 28 -78 40 -66 32 -54 C 40 -44 30 -34 18 -38 C 12 -28 -8 -26 -14 -34 C -26 -30 -36 -36 -32 -46 Z';
+
+function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <line x1="0" y1="0" x2="0" y2="-34" stroke={INK} strokeWidth="2.5" />
-      <line x1="0" y1="-16" x2="9" y2="-24" stroke={INK} strokeWidth="2" />
-      <circle cx="0" cy="-52" r="22" fill="#fff" stroke={INK} strokeWidth="2.5" />
-      {twin && <circle cx="17" cy="-40" r="14" fill="#fff" stroke={INK} strokeWidth="2.5" />}
+    <g transform={`translate(${x} ${y}) scale(${s})`} strokeLinecap="round">
+      <path d="M0 0 C 1 -10 -1 -22 0 -36" fill="none" stroke={INK} strokeWidth="3" />
+      <path d="M0 -20 C -5 -27 -10 -32 -14 -40" fill="none" stroke={INK} strokeWidth="2.2" />
+      <path d="M0 -27 C 4 -33 9 -38 12 -46" fill="none" stroke={INK} strokeWidth="2.2" />
+      <path d={CANOPY} fill="#fff" stroke={INK} strokeWidth="2.5" strokeLinejoin="round" />
+      <path
+        d="M-10 -52 C -4 -58 6 -60 14 -56"
+        fill="none"
+        stroke={INK}
+        strokeWidth="1.6"
+        opacity="0.5"
+      />
     </g>
   );
 }
@@ -148,6 +160,51 @@ const TUFTS: [number, number, number][] = [
   [1420, 414, 1],
 ];
 
+// A small flower-and-grass cluster for the margins of the sections below the
+// hero, so the meadow runs the whole front page.
+export function MeadowSprig({ flip = false }: { flip?: boolean }) {
+  return (
+    <svg
+      className={flip ? 'sprig-svg flipped' : 'sprig-svg'}
+      viewBox="0 0 90 96"
+      aria-hidden="true"
+    >
+      <Flower x={30} y={92} h={44} c={0} delay={-2} />
+      <Flower x={58} y={94} h={32} c={1} delay={-5} />
+      <Tuft x={74} y={94} s={1.1} />
+      <Tuft x={12} y={94} s={0.8} />
+    </svg>
+  );
+}
+
+// The closing field band at the very bottom of the front page.
+export function MeadowStrip() {
+  return (
+    <div className="meadow-strip" aria-hidden="true">
+      <svg viewBox="0 0 1440 190" preserveAspectRatio="xMidYMax slice">
+        <path d="M-10 96 C 300 62, 640 76, 940 88 C 1160 96, 1300 78, 1450 86 L 1450 190 L -10 190 Z" fill="#fbfaf7" />
+        <path
+          d="M-10 96 C 300 62, 640 76, 940 88 C 1160 96, 1300 78, 1450 86"
+          fill="none"
+          stroke={INK}
+          strokeWidth="2.5"
+        />
+        <Tree x={230} y={86} s={0.9} />
+        <Tree x={1240} y={90} s={0.7} />
+        <Tuft x={120} y={150} s={1.1} />
+        <Tuft x={480} y={140} s={0.9} />
+        <Tuft x={860} y={152} s={1.1} />
+        <Tuft x={1360} y={144} s={0.9} />
+        <Flower x={340} y={168} h={44} c={0} delay={-1} />
+        <Flower x={372} y={174} h={34} c={2} delay={-4} />
+        <Flower x={700} y={162} h={48} c={1} delay={-2.5} />
+        <Flower x={1030} y={170} h={40} c={0} delay={-6} />
+        <Flower x={1062} y={176} h={30} c={1} delay={-3} />
+      </svg>
+    </div>
+  );
+}
+
 export default function FrontScene() {
   return (
     <div className="front-scene" aria-hidden="true">
@@ -158,11 +215,10 @@ export default function FrontScene() {
         {/* back hill */}
         <path d={`${BACK_HILL} L 1450 480 L -10 480 Z`} fill="#fbfaf7" />
         <path d={BACK_HILL} fill="none" stroke={INK} strokeWidth="2.5" />
-        <Tree x={150} y={292} s={1.1} twin />
-        <Tree x={268} y={284} s={0.7} />
-        <Tree x={598} y={278} s={0.85} />
-        <Tree x={1176} y={276} s={1} twin />
-        <Tree x={1298} y={282} s={0.65} />
+        <Tree x={168} y={292} s={1.15} />
+        <Tree x={296} y={286} s={0.65} />
+        <Tree x={1190} y={276} s={1.05} />
+        <Tree x={1330} y={284} s={0.6} />
 
         {/* front hill */}
         <path d={`${FRONT_HILL} L 1450 480 L -10 480 Z`} fill="#ffffff" />

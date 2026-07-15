@@ -1415,3 +1415,38 @@ html { scroll-behavior: smooth; }
   cursor: pointer;
   padding: 0;
 }
+
+/* The meadow runs the whole front page: sprigs in the section margins,
+   a closing field band above the footer. */
+.front-body { position: relative; }
+.sprig { position: absolute; width: 76px; pointer-events: none; }
+.sprig-svg { display: block; width: 100%; }
+.sprig-svg.flipped { transform: scaleX(-1); }
+.sprig.l1 { left: 4vw; top: 14%; }
+.sprig.r1 { right: 4vw; top: 34%; }
+.sprig.l2 { left: 5vw; top: 58%; }
+.sprig.r2 { right: 5vw; top: 78%; }
+@media (max-width: 1100px) {
+  .sprig { display: none; }
+}
+.meadow-strip {
+  width: 100vw;
+  margin: 4rem 0 0 calc(50% - 50vw);
+  pointer-events: none;
+}
+.meadow-strip svg { display: block; width: 100%; height: auto; }
+
+/* Collapsible mail group: outreach is the product, mail is support. */
+.side-fold {
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.side-fold:hover { color: var(--text); }
+.fold-caret { font-size: 0.6rem; }

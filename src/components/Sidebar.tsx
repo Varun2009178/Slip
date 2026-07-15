@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Section } from './Inbox';
 import type { Profile } from '../lib/gmail';
 import {
@@ -57,6 +58,10 @@ export default function Sidebar({
     drafts: draftsCount,
   };
 
+  const [mailOpen, setMailOpen] = useState(false);
+  // In mail views the group is always visible (it holds the active highlight).
+  const showMail = mailOpen || !outreachActive;
+
   return (
     <nav className="sidebar">
       <div className="side-brand">
@@ -78,21 +83,26 @@ export default function Sidebar({
         Batches
       </button>
 
-      <div className="side-label">Mail</div>
-      {ITEMS.map(({ key, label, icon }) => {
-        const count = counts[key];
-        return (
-          <button
-            key={key}
-            className={key === section ? 'nav-item active' : 'nav-item'}
-            onClick={() => onNavigate(key)}
-          >
-            {icon}
-            {label}
-            {typeof count === 'number' && count > 0 && <span className="nav-count">{count}</span>}
-          </button>
-        );
-      })}
+      {/* Outreach is the product; mail is support. The mail group stays
+          folded while you're in outreach unless opened by hand. */}
+      <button className="side-label side-fold" onClick={() => setMailOpen((o) => !o)}>
+        Mail <span className="fold-caret">{showMail ? '▾' : '▸'}</span>
+      </button>
+      {showMail &&
+        ITEMS.map(({ key, label, icon }) => {
+          const count = counts[key];
+          return (
+            <button
+              key={key}
+              className={key === section ? 'nav-item active' : 'nav-item'}
+              onClick={() => onNavigate(key)}
+            >
+              {icon}
+              {label}
+              {typeof count === 'number' && count > 0 && <span className="nav-count">{count}</span>}
+            </button>
+          );
+        })}
 
       <div className="side-foot">
         <a

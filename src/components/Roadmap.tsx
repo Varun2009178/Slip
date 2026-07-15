@@ -1,27 +1,24 @@
+import { MeadowStrip } from './FrontScene';
+
 const ITEMS: { title: string; desc: string; status: 'soon' | 'planned' }[] = [
-  {
-    title: 'snooze',
-    desc: '"not now, come back tuesday." emails leave the inbox and return exactly when you want them.',
-    status: 'soon',
-  },
-  {
-    title: 'send later',
-    desc: 'write at 11pm, land in their inbox at 8am sharp.',
-    status: 'soon',
-  },
   {
     title: 'follow up nudges',
     desc: 'no reply in 3 days? slip taps you on the shoulder so nothing leaks.',
     status: 'soon',
   },
   {
-    title: 'automated replies',
-    desc: 'slip drafts the response; you read it and press one key.',
+    title: 'schedule the batch',
+    desc: 'build tonight, start sending at 8am sharp while you sleep in.',
+    status: 'soon',
+  },
+  {
+    title: 'csv upload',
+    desc: 'drop a file instead of pasting, for the spreadsheet-averse.',
     status: 'planned',
   },
   {
-    title: 'priority triage',
-    desc: 'investors, customers, and real people float above the noise.',
+    title: 'snooze',
+    desc: '"not now, come back tuesday." replies leave the inbox and return when you want them.',
     status: 'planned',
   },
 ];
@@ -31,7 +28,7 @@ export default function Roadmap() {
   return (
     <section className="roadmap" id="roadmap">
       <h2>what&rsquo;s coming</h2>
-      <p className="roadmap-note">slip is in private beta. 100 seats, keyboard first from day one.</p>
+      <p className="roadmap-note">slip is in private beta. 100 seats, outreach first from day one.</p>
       <ol className="roadmap-list">
         {ITEMS.map((item) => (
           <li key={item.title} className="roadmap-item">
@@ -43,6 +40,7 @@ export default function Roadmap() {
           </li>
         ))}
       </ol>
+      <MeadowStrip />
       <footer className="front-foot">
         <a href="/privacy">privacy</a>
         <span>·</span>

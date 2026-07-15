@@ -29,7 +29,7 @@ import { addSnooze, dueSnoozeIds, pendingSnoozeIds, removeSnooze } from './lib/s
 import { formatWhen, snoozePresets } from './lib/when';
 import { sortInbox } from './lib/mail';
 import Connect, { DENIED_ERROR, SlipAnimation } from './components/Connect';
-import FrontScene from './components/FrontScene';
+import FrontScene, { MeadowSprig } from './components/FrontScene';
 import Legal from './components/Legal';
 import Roadmap from './components/Roadmap';
 import Showcase from './components/Showcase';
@@ -685,8 +685,14 @@ export default function App() {
         <div className="video-stage">
           <video className="video-card" src="/slip_email.mp4" autoPlay muted loop playsInline />
         </div>
-        <Showcase />
-        <Roadmap />
+        <div className="front-body">
+          <span className="sprig l1"><MeadowSprig /></span>
+          <span className="sprig r1"><MeadowSprig flip /></span>
+          <span className="sprig l2"><MeadowSprig flip /></span>
+          <span className="sprig r2"><MeadowSprig /></span>
+          <Showcase />
+          <Roadmap />
+        </div>
       </div>
     );
   }
