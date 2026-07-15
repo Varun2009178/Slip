@@ -679,6 +679,7 @@ export default function App() {
             </button>
           </nav>
         </header>
+        {/* Cursor-style hero: compact copy top-left, the demo video is the page. */}
         <section className="front-hero">
           <div className="front-bg" aria-hidden="true" />
           <div className="hero-sky">
@@ -690,16 +691,20 @@ export default function App() {
               )}
             </div>
           </div>
+          <div className="hero-demo">
+            <video
+              className="video-card"
+              src="/slip_cold_emailing_demo.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          </div>
           <a className="scroll-hint" href="#tour">
             ↓ see how it works
           </a>
         </section>
-        <div className="video-stage">
-          {/* Until the outreach demo video is recorded, the billboard shows the
-              live tracking view. (Restore: <video className="video-card"
-              src="/slip_email.mp4" autoPlay muted loop playsInline />) */}
-          <img className="video-card" src="/shots/outreach-send.png" alt="a batch mid-send: replies lighting up" />
-        </div>
         <div className="front-body">
           <Showcase />
           <Roadmap />
