@@ -1287,6 +1287,11 @@ html { scroll-behavior: smooth; }
 .preview-meta { display: flex; justify-content: flex-end; }
 .preview-actions { grid-column: 1 / -1; }
 
+.restore-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px;
+}
+
 .send-step { display: flex; flex-direction: column; gap: 16px; }
 .send-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
