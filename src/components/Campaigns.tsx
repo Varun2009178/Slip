@@ -31,7 +31,9 @@ export default function Campaigns({ campaigns, onOpen, onNew, onDelete }: Props)
       ) : (
         <ul className="campaign-list">
           {campaigns.map((c) => {
-            const sent = c.recipients.filter((r) => r.status === 'sent' || r.status === 'replied');
+            const sent = c.recipients.filter(
+              (r) => r.status === 'sent' || r.status === 'replied' || r.status === 'bounced',
+            );
             const replied = c.recipients.filter((r) => r.status === 'replied');
             return (
               <li key={c.id} className="campaign-li">

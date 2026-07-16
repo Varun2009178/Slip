@@ -1296,12 +1296,60 @@ html { scroll-behavior: smooth; }
 .send-banner.is-paused { background: #fff4dc; color: var(--warning); }
 .send-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
 .send-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--hover); font-size: 14px; }
-.send-status { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.send-status.is-sent { color: var(--success); }
-.send-status.is-replied { color: var(--success); font-weight: 600; }
-.send-status.is-failed { color: var(--danger); }
-.send-status.is-sending { color: var(--warning); }
 .send-error { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+
+/* ── Pastel status system (Notion-tag palette) ─────────────
+   Each status owns a bg/ink pair shared by its chip and tile. */
+.is-queued  { --st-bg: #eee9f8; --st-ink: #9065b0; } /* lavender */
+.is-sending { --st-bg: #faebdd; --st-ink: #d9730d; } /* peach    */
+.is-sent    { --st-bg: #dbeddb; --st-ink: #448361; } /* mint     */
+.is-replied { --st-bg: #ddebf1; --st-ink: #337ea9; } /* sky      */
+.is-bounced { --st-bg: #fbf3db; --st-ink: #bd8a20; } /* apricot  */
+.is-failed  { --st-bg: #fdebec; --st-ink: #d44c47; } /* rose     */
+
+.status-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--st-bg); color: var(--st-ink);
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+  border-radius: 99px; padding: 3px 10px 3px 8px;
+  animation: chip-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.status-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.status-chip.is-replied { font-weight: 600; }
+.status-chip.is-sending svg { animation: chip-pulse 1.4s ease-in-out infinite; }
+
+@keyframes chip-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes chip-pulse {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.45; transform: translateX(2px); }
+}
+
+.send-tiles { display: flex; gap: 10px; flex-wrap: wrap; }
+.send-tile {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--st-bg); color: var(--st-ink);
+  border-radius: 12px; padding: 10px 16px; min-width: 88px;
+  animation: chip-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tile-num {
+  font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  animation: num-bounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tile-label { font-size: 11px; font-weight: 500; opacity: 0.85; white-space: nowrap; }
+
+@keyframes num-bounce {
+  0% { transform: translateY(6px) scale(0.9); opacity: 0.4; }
+  55% { transform: translateY(-2px) scale(1.06); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-chip, .send-tile, .tile-num, .status-chip.is-sending svg { animation: none; }
+}
 
 @media (max-width: 720px) {
   .preview-step { grid-template-columns: 1fr; }

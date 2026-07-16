@@ -57,12 +57,12 @@ function seeded(step: WizardStep): Campaign {
         i === 0
           ? { ...r, status: 'replied', messageId: 'm1', threadId: 't1' }
           : i === 1
-            ? { ...r, status: 'replied', messageId: 'm2', threadId: 't2' }
+            ? { ...r, status: 'sent', messageId: 'm2', threadId: 't2' }
             : i === 2
-              ? { ...r, status: 'sent', messageId: 'm3', threadId: 't3' }
+              ? { ...r, status: 'bounced', messageId: 'm3', threadId: 't3' }
               : i === 3
-                ? { ...r, status: 'sending' }
-                : r,
+                ? { ...r, status: 'failed', error: 'gmail rejected the request' }
+                : { ...r, status: 'sending' },
       ),
     };
   }

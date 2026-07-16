@@ -2,7 +2,7 @@ import type { Email } from './types';
 
 // ── Types ──────────────────────────────────────────────────
 
-export type RecipientStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'replied';
+export type RecipientStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'replied' | 'bounced';
 
 export interface Recipient {
   id: string;
@@ -308,16 +308,35 @@ export function recordReplied(c: Campaign, id: string): Campaign {
   return setStatus(c, id, { status: 'replied' });
 }
 
-// ── Reply detection ────────────────────────────────────────
+export function recordBounced(c: Campaign, id: string): Campaign {
+  const r = c.recipients.find((x) => x.id === id);
+  if (r?.status !== 'sent') return c;
+  return setStatus(c, id, { status: 'bounced' });
+}
 
-// "Anyone but me in the thread" is the whole heuristic. Two known limits:
+// ── Reply & bounce detection ───────────────────────────────
+
+// Delivery failures come back as a message from the receiving system's
+// bounce address, not from a person.
+const BOUNCE_SENDER_RE = /^(mailer-daemon|postmaster|mail\s*delivery\s*subsystem)@/i;
+
+function isBounceMessage(m: Email): boolean {
+  return BOUNCE_SENDER_RE.test(m.fromEmail.trim());
+}
+
+export function hasBounce(thread: Email[]): boolean {
+  return thread.some(isBounceMessage);
+}
+
+// "Anyone but me in the thread" is the whole heuristic, minus bounce
+// notifications (those are delivery failures, not replies). Two known limits:
 // an auto-responder (out-of-office, ticket bot) in the thread counts as a
 // reply, and if the user sends via a send-as alias that differs from their
 // profile address, their own messages won't match selfEmail and would be
 // mistaken for replies.
 export function hasReply(thread: Email[], selfEmail: string): boolean {
   const self = selfEmail.trim().toLowerCase();
-  return thread.some((m) => m.fromEmail.trim().toLowerCase() !== self);
+  return thread.some((m) => !isBounceMessage(m) && m.fromEmail.trim().toLowerCase() !== self);
 }
 
 // ── Pacing ─────────────────────────────────────────────────
