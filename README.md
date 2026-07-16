@@ -4,4 +4,4 @@
 
 <p align="center"><a href="https://www.slip.email">https://www.slip.email</a></p>
 
-<p align="center">slip is the most minimalistic email on the web, built for busy people tired of gmail.</p>
+<p align="center">because cold emailing has gotten wayyy too complicated lately</p>
