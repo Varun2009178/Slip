@@ -4,6 +4,7 @@ import {
   addRow,
   applyPaste,
   blockingIssues,
+  hasBounce,
   hasReply,
   isValidEmail,
   MAX_GAP_MS,
@@ -11,6 +12,7 @@ import {
   newCampaign,
   nextSendDelayMs,
   parsePasted,
+  recordBounced,
   recordFailed,
   recordReplied,
   recordSent,
@@ -298,6 +300,14 @@ describe('send-state transitions', () => {
     expect(c.recipients[0].status).toBe('replied');
     expect(recordReplied(c, c.recipients[1].id).recipients[1].status).toBe('queued');
   });
+  it('recordBounced only flips sent recipients', () => {
+    let c = sendable();
+    const first = startNextSend(c)!;
+    c = recordSent(first.campaign, first.recipient.id, { id: 'm1', threadId: 't1' });
+    c = recordBounced(c, c.recipients[0].id);
+    expect(c.recipients[0].status).toBe('bounced');
+    expect(recordBounced(c, c.recipients[1].id).recipients[1].status).toBe('queued');
+  });
 });
 
 describe('hasReply', () => {
@@ -311,6 +321,24 @@ describe('hasReply', () => {
   });
   it('is true when someone else appears in the thread, case-insensitively', () => {
     expect(hasReply([msg('me@gmail.com'), msg('Ada@CS.Stanford.EDU')], 'me@gmail.com')).toBe(true);
+  });
+  it('does not count a bounce notification as a reply', () => {
+    expect(hasReply([msg('me@gmail.com'), msg('MAILER-DAEMON@googlemail.com')], 'me@gmail.com')).toBe(false);
+  });
+});
+
+describe('hasBounce', () => {
+  const msg = (fromEmail: string): Email => ({
+    id: '1', threadId: 't', rfcMessageId: '', from: fromEmail, fromEmail,
+    subject: '', snippet: '', body: '', bodyHtml: null,
+    date: new Date().toISOString(), unread: false, starred: false,
+  });
+  it('spots mailer-daemon and postmaster senders, case-insensitively', () => {
+    expect(hasBounce([msg('me@gmail.com'), msg('MAILER-DAEMON@googlemail.com')])).toBe(true);
+    expect(hasBounce([msg('postmaster@outlook.com')])).toBe(true);
+  });
+  it('is false for ordinary threads', () => {
+    expect(hasBounce([msg('me@gmail.com'), msg('ada@cs.stanford.edu')])).toBe(false);
   });
 });
 

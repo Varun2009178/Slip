@@ -12,6 +12,7 @@ import {
   fetchThread,
   listDrafts,
   markRead,
+  restoreConnection,
   saveDraft,
   sendEmail,
   unarchive,
@@ -130,6 +131,9 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [gate, setGate] = useState<'waitlist' | 'connect'>(() => (hasAccess() ? 'connect' : 'waitlist'));
+  // True while a previous visit's token is being tried at boot; keeps the
+  // landing page from flashing before the app appears.
+  const [restoring, setRestoring] = useState(() => hasAccess() && restoreConnection());
   const [entering, setEntering] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Batches load once we know whose they are (account-scoped storage).
@@ -273,29 +277,47 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [sendingActive]);
 
+  // Everything that happens once a token is live — shared by the connect
+  // button and the boot-time session restore.
+  async function enterApp() {
+    fetchProfile().then(setProfile).catch(() => undefined);
+    await wakeDueSnoozes().catch(() => undefined);
+    const inbox = await fetchInbox();
+    setEntering(true);
+    setEmails(inbox);
+    // Batches are the product — everyone lands there, seeing their own.
+    setView({ name: 'campaigns' });
+    fetchSelfEmail()
+      .then((email) => {
+        setSelfEmail(email);
+        setCampaignAccount(email);
+        setCampaigns(loadCampaigns());
+      })
+      .catch(() => {
+        // No address: reply tracking stays off, batches use the shared key.
+        setCampaignAccount(null);
+        setCampaigns(loadCampaigns());
+      });
+    window.setTimeout(() => setEntering(false), ENTER_MS);
+  }
+
+  // Boot-time restore: a token saved on the last visit skips the connect
+  // popup entirely. If Gmail rejects it (expired, revoked), fall back to the
+  // normal landing page without an error — the user just connects again.
+  useEffect(() => {
+    if (!restoring) return;
+    enterApp()
+      .catch(() => undefined)
+      .finally(() => setRestoring(false));
+    // Boot-only: enterApp is stable in behavior, and this must run exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleConnect() {
     setConnectError(null);
     try {
       await connect();
-      fetchProfile().then(setProfile).catch(() => undefined);
-      await wakeDueSnoozes().catch(() => undefined);
-      const inbox = await fetchInbox();
-      setEntering(true);
-      setEmails(inbox);
-      // Batches are the product — everyone lands there, seeing their own.
-      setView({ name: 'campaigns' });
-      fetchSelfEmail()
-        .then((email) => {
-          setSelfEmail(email);
-          setCampaignAccount(email);
-          setCampaigns(loadCampaigns());
-        })
-        .catch(() => {
-          // No address: reply tracking stays off, batches use the shared key.
-          setCampaignAccount(null);
-          setCampaigns(loadCampaigns());
-        });
-      window.setTimeout(() => setEntering(false), ENTER_MS);
+      await enterApp();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'auth-failed';
       // Non-test-users end at Google's "access blocked" page (access_denied),
@@ -650,6 +672,12 @@ export default function App() {
   // Dev-only: seeded wizard for capturing landing-page screenshots.
   if (import.meta.env.DEV && path === '/dev/shots') {
     return <DevShots />;
+  }
+
+  // Trying last visit's session — a quiet beat instead of flashing the
+  // landing page at someone who is already signed in.
+  if (restoring && emails === null) {
+    return <div className="restore-screen">opening slip…</div>;
   }
 
   if (emails === null) {

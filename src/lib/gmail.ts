@@ -254,7 +254,44 @@ export function getClientId(): string | null {
 
 interface TokenResponse {
   access_token?: string;
+  expires_in?: number; // seconds
   error?: string;
+}
+
+// The token survives reloads so a returning user isn't sent through the
+// consent popup every visit. localStorage is same-origin only — anything able
+// to read it can already run code in this page — and Gmail revokes the token
+// after ~an hour regardless.
+const TOKEN_KEY = 'slip-token';
+
+function loadStoredToken(): string | null {
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    if (!raw) return null;
+    const t = JSON.parse(raw) as { token?: unknown; exp?: unknown };
+    if (typeof t.token !== 'string' || typeof t.exp !== 'number') return null;
+    // A token about to die mid-boot is worse than reconnecting now.
+    if (Date.now() > t.exp - 60_000) return null;
+    return t.token;
+  } catch {
+    return null;
+  }
+}
+
+function storeToken(token: string, expiresInSec: number): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp: Date.now() + expiresInSec * 1000 }));
+  } catch {
+    // session just won't survive a reload
+  }
+}
+
+function clearStoredToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // nothing to clear
+  }
 }
 
 interface TokenClient {
@@ -295,16 +332,26 @@ export async function connect(): Promise<void> {
   const clientId = getClientId();
   if (!clientId) throw new Error('missing-client-id');
   await loadGis();
-  accessToken = await new Promise<string>((resolve, reject) => {
+  const resp = await new Promise<TokenResponse>((resolve, reject) => {
     const client = window.google!.accounts!.oauth2!.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
-      callback: (resp) =>
-        resp.access_token ? resolve(resp.access_token) : reject(new Error(resp.error ?? 'auth-failed')),
+      callback: (r) => (r.access_token ? resolve(r) : reject(new Error(r.error ?? 'auth-failed'))),
       error_callback: (err) => reject(new Error(err.message ?? err.type ?? 'auth-failed')),
     });
     client.requestAccessToken();
   });
+  accessToken = resp.access_token!;
+  storeToken(accessToken, resp.expires_in ?? 3600);
+}
+
+// Picks up the previous visit's token so a reload goes straight into the app.
+// True means "worth trying" — a revoked token still 401s on first use, which
+// clears it and lands on the connect screen as before.
+export function restoreConnection(): boolean {
+  const stored = loadStoredToken();
+  if (stored) accessToken = stored;
+  return stored !== null;
 }
 
 export function isConnected(): boolean {
@@ -368,6 +415,7 @@ async function api<T>(
     });
     if (res.status === 401) {
       accessToken = null;
+      clearStoredToken();
       throw new Error('not-connected');
     }
     if (res.ok) return res.json() as Promise<T>;
